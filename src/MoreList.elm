@@ -1,4 +1,4 @@
-﻿module MoreList exposing (..)
+module MoreList exposing (..)
 
 splitFirstTrue predicate list =
     case list of

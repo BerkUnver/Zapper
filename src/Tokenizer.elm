@@ -1,4 +1,4 @@
-﻿module Lexer exposing (..)
+module Tokenizer exposing (..)
 
 import MoreList
 
@@ -27,7 +27,7 @@ tokenizeString chars = -- todo : more descriptive errors
     let 
         appendStr char tail = 
             tokenizeString tail
-            |> Maybe.map \(str, next) -> (char :: str, next)
+            |> Maybe.map (\(str, next) -> (char :: str, next))
     in
     case chars of
         [] -> 
@@ -47,35 +47,38 @@ tokenizeString chars = -- todo : more descriptive errors
                         '"' -> mapRest '"'
                         '\''  -> mapRest '\''
                         '\\' -> mapRest '\\'
-                        'u' -> {- todo -} Debug.todo "Unicode format specifiers are not currently implemented." 
+                        -- todo : implement unicode format specifiers in strings
+                        'u' -> Debug.todo "Unicode format specifiers are not currently implemented." 
                         _ -> Nothing
         char :: tail ->
-            tokenizeString tail
-            |> appendStr char
+            appendStr char tail
                 
                 
-        
+tokenize : List Char -> Maybe (List Token)
 tokenize chars = 
     case chars of
         [] ->
             Just []
             
         head :: tail ->
+            let concatToken token rest = tokenize rest |> Maybe.map (\tokens -> token :: tokens) in
             case head of
                 '(' -> 
-                    Just <| LPar :: tokenize tail
+                    concatToken LPar tail
                 ')' ->
-                    Just <| RPar :: tokenize tail
+                    concatToken RPar tail
                 '"' -> 
+                    -- todo : add error message for strings that end and don't have whitespace/parenthesis after
                     tokenizeString tail
-                    |> Maybe.andThen \(str, rest) -> tokenize rest 
-                    |> Maybe.map \tokens -> StringLiteral str :: tokens
+                    |> Maybe.andThen (\(str, rest) -> concatToken (StringLiteral str) rest)
                 _ ->
-                    if isWhitespace head
-                    then tokenize tail
+                    if not <| Char.isAlphaNum head then
+                        Nothing
+                    else if isWhitespace head then
+                        tokenize tail
                     else
-                        let
+                        let 
                             (datum, rest) = 
                                 MoreList.splitFirstTrue (\c -> c == '(' || c == ')' || isWhitespace c ) tail
                         in
-                        StringLiteral (head :: datum) :: tokenize rest
+                        concatToken (StringLiteral (head :: datum)) rest

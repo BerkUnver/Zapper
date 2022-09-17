@@ -1,6 +1,4 @@
-﻿module Lexer.NumType exposing (..)
-
-import Lexer.Word as Word
+module Lexer.NumType exposing (..)
 
 type NumType
     = I32
