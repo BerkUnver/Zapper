@@ -19,9 +19,11 @@ toListChar token =
 
 whitespaceChars = [' ', '\n', '\u{0009}']
 
+
 isWhitespace char =
     whitespaceChars
     |> List.member char    
+
 
 tokenizeString chars = -- todo : more descriptive errors
     let 
@@ -48,12 +50,13 @@ tokenizeString chars = -- todo : more descriptive errors
                         '\''  -> mapRest '\''
                         '\\' -> mapRest '\\'
                         -- todo : implement unicode format specifiers in strings
+                        -- todo : implement hex literals
                         'u' -> Debug.todo "Unicode format specifiers are not currently implemented." 
                         _ -> Nothing
         char :: tail ->
             appendStr char tail
-                
-                
+
+
 tokenize : List Char -> Maybe (List Token)
 tokenize chars = 
     case chars of
@@ -72,13 +75,14 @@ tokenize chars =
                     tokenizeString tail
                     |> Maybe.andThen (\(str, rest) -> concatToken (StringLiteral str) rest)
                 _ ->
-                    if not <| Char.isAlphaNum head then
-                        Nothing
-                    else if isWhitespace head then
+                    -- todo : Check for non-7-bit ASCII characters and give error
+                    -- todo : Check for line comments
+                    -- todo : Check for block comments
+                    if isWhitespace head then
                         tokenize tail
                     else
                         let 
                             (datum, rest) = 
                                 MoreList.splitFirstTrue (\c -> c == '(' || c == ')' || isWhitespace c ) tail
                         in
-                        concatToken (StringLiteral (head :: datum)) rest
+                        concatToken (StringLiteral <| head :: datum) rest

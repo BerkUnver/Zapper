@@ -13,9 +13,9 @@ toString t =
         F32 -> "f32"
         F64 -> "f64"
 
-fromString chars = 
-    if chars == "i32" then Just I32
-    else if chars ==  "i64" then Just I64
-    else if chars == "f32" then Just F32
-    else if chars == "i64" then Just I64
+fromCharList chars = 
+    if chars == String.toList "i32" then Just I32
+    else if chars == String.toList "i64" then Just I64
+    else if chars == String.toList "f32" then Just F32
+    else if chars == String.toList "i64" then Just I64
     else Nothing

@@ -1,7 +1,7 @@
 module TokenizerTest exposing (suite)
 
 import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer, char, int, list, string)
+import Fuzz exposing (Fuzzer, tuple, char, int, list, string)
 import MoreMaybe
 import Test exposing (..)
 import Tokenizer exposing (Token(..))
@@ -15,7 +15,6 @@ legalizeChars escapeChar chars =
             else
                 char :: charList  -- todo : find a way to fuzz \t, \n, \r, so on
     ) ['"'] chars
-
 
 escapeCharFuzz = 
     ['t', 'n', 'r', '"', '\'', '\\']
@@ -32,12 +31,25 @@ suite =
                     Tokenizer.tokenizeString ['"']
                     |> Expect.equal (Just ([], []))
                     
-            , fuzz (Fuzz.tuple (list char, escapeCharFuzz)) "Legal string" <|
+            , fuzz (tuple (list char, escapeCharFuzz)) "Legal string" <|
                 \(chars, escapeChar) -> 
                     legalizeChars escapeChar chars
                     |> Tokenizer.tokenizeString
                     |> MoreMaybe.isJust
                     |> Expect.true "Expected the string tokenizer to succeed."
+                
+            , fuzz (tuple (list char, escapeCharFuzz)) "Non-terminated string" <|
+                \(chars, escapeChar) ->
+                    List.foldr (
+                        \char charList ->
+                        case char of 
+                            '\\' -> '\\' :: escapeChar :: charList
+                            '"' -> '\\' :: '"' :: charList
+                            _ -> char :: charList
+                    ) [] chars
+                    |> Tokenizer.tokenizeString
+                    |> MoreMaybe.isJust >> not
+                    |> Expect.true "Fails when string is not terminated with brackets"
             ]
             
         , describe "tokenize"

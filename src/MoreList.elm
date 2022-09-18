@@ -43,7 +43,8 @@ count predicate list =
         [] -> 0
         head :: tail ->
             (if predicate head then 1 else 0) + count predicate tail
-    
+
+
 contains elem list = 
     case list of
         [] -> False
@@ -51,8 +52,18 @@ contains elem list =
             if head == elem
             then True
             else contains elem tail
-            
+
+       
 appendN num element list =
     if num <= 0
     then list
-    else element :: appendN (num - 1) element list 
+    else element :: appendN (num - 1) element list
+    
+
+firstJust func list = 
+    case list of
+        [] -> Nothing
+        head :: tail ->
+            case func head of 
+                Nothing -> firstJust func tail
+                result -> result

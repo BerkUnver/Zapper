@@ -1,0 +1,33 @@
+module Lexer.Instruction.I64 exposing (..)
+
+type I64
+    = Const
+    | EqZero
+    | Eq
+    | NotEq
+    | LessThanSigned
+    | LessThanUnsigned
+    | GreaterThanSigned
+    | GreaterThanUnsigned
+    | LessThanOrEqSigned
+    | LessThanOrEqUnsigned
+    | GreaterThanOrEqSigned
+    | GreaterThanOrEqUnsigned
+    | CountLeadingZeros
+    | CountTrailingZeros
+    | PopulationCount
+    | Add
+    | Sub
+    | Mul
+    | DivSigned
+    | DivUnsigned
+    | RemainderSigned
+    | RemainderUnsigned
+    | And
+    | Or
+    | XOr
+    | ShiftLeft
+    | ShiftRightSigned
+    | ShiftRightUnsigned
+    | RotateLeft
+    | RotateRight
