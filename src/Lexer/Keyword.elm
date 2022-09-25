@@ -2,11 +2,13 @@ module Lexer.Keyword exposing (..)
 import Lexer.Instruction exposing (Instruction)
 import Lexer.NumType as NumType exposing (NumType)
 
+
 type Keyword 
     = Module
     | Func
     | Param 
     | Result
+    -- todo : Export keyword
     | NumType NumType
     | Instruction Instruction
 

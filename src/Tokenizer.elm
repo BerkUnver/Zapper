@@ -1,20 +1,21 @@
 module Tokenizer exposing (..)
 
-import MoreList
+import More.List as List
+import SExpr as SExpr
 
-type Token 
-    = LPar
-    | RPar
-    | StringLiteral (List Char)
+type alias Token = SExpr.Token WasmString
+
+type WasmString 
+    = String (List Char)
     | Id (List Char)
 
-
+toListChar : Token -> List Char
 toListChar token = 
     case token of
-        LPar -> ['(']
-        RPar -> [')']
-        StringLiteral s -> s
-        Id id -> id
+        SExpr.LPar -> ['(']
+        SExpr.RPar -> [')']
+        SExpr.Literal (String s) -> s
+        SExpr.Literal (Id id) -> id
 
 
 whitespaceChars = [' ', '\n', '\u{0009}']
@@ -24,7 +25,7 @@ isWhitespace char =
     whitespaceChars
     |> List.member char    
 
-
+tokenizeString : List Char -> Maybe (List Char, List Char)
 tokenizeString chars = -- todo : more descriptive errors
     let 
         appendStr char tail = 
@@ -67,13 +68,13 @@ tokenize chars =
             let concatToken token rest = tokenize rest |> Maybe.map (\tokens -> token :: tokens) in
             case head of
                 '(' -> 
-                    concatToken LPar tail
+                    concatToken SExpr.LPar tail
                 ')' ->
-                    concatToken RPar tail
+                    concatToken SExpr.RPar tail
                 '"' -> 
                     -- todo : add error message for strings that end and don't have whitespace/parenthesis after
                     tokenizeString tail
-                    |> Maybe.andThen (\(str, rest) -> concatToken (StringLiteral str) rest)
+                    |> Maybe.andThen (\(str, rest) -> concatToken (SExpr.Literal <| String str) rest)
                 _ ->
                     -- todo : Check for non-7-bit ASCII characters and give error
                     -- todo : Check for line comments
@@ -83,6 +84,6 @@ tokenize chars =
                     else
                         let 
                             (datum, rest) = 
-                                MoreList.splitFirstTrue (\c -> c == '(' || c == ')' || isWhitespace c ) tail
+                                List.splitFirstTrue (\c -> c == '(' || c == ')' || isWhitespace c ) tail
                         in
-                        concatToken (StringLiteral <| head :: datum) rest
+                        concatToken (SExpr.Literal <| String <| head :: datum) rest

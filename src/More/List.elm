@@ -1,4 +1,4 @@
-module MoreList exposing (..)
+module More.List exposing (..)
 
 splitFirstTrue predicate list =
     case list of
@@ -23,7 +23,7 @@ firstTrue predicate list =
             else firstTrue predicate tail
 
 
-mapUntil predicate list =
+mapUntilNothing predicate list =
     case list of 
         [] -> ([], [])
         head :: tail ->
@@ -31,7 +31,7 @@ mapUntil predicate list =
                 Nothing -> ([], list)
                 Just element ->
                     let 
-                        (left, right) = mapUntil predicate tail 
+                        (left, right) = mapUntilNothing predicate tail 
                     in
                         (element :: left, right)
                         
@@ -67,3 +67,13 @@ firstJust func list =
             case func head of 
                 Nothing -> firstJust func tail
                 result -> result
+                
+tryAll func list =
+    case list of
+        head :: tail ->
+            func head 
+            |> Maybe.andThen (\result -> 
+                tryAll func tail 
+                |> Maybe.map (\rest -> result :: rest))
+        
+        [] -> Just []

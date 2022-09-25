@@ -1,6 +1,6 @@
-module Lexer.Instruction.I32 exposing (..)
+module Lexer.Instruction.Numeric.I32 exposing (..)
 
-
+-- todo : add all instructions
 -- stopped at 0xA7 on the table here
 -- https://webassembly.github.io/spec/core/appendix/index-instructions.html
 type I32

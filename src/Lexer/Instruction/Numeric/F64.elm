@@ -1,6 +1,7 @@
-module Lexer.Instruction.F32 exposing (..)
+module Lexer.Instruction.Numeric.F64 exposing (..)
 
-type F32
+
+type F64
     = Const
     | Eq
     | NotEq

@@ -2,9 +2,10 @@ module TokenizerTest exposing (suite)
 
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, tuple, char, int, list, string)
-import MoreMaybe
+import More.Maybe as Maybe
+import SExpr
 import Test exposing (..)
-import Tokenizer exposing (Token(..))
+import Tokenizer
 
 --- this is just a debug function, please use valid debug characters
 legalizeChars escapeChar chars =
@@ -35,7 +36,7 @@ suite =
                 \(chars, escapeChar) -> 
                     legalizeChars escapeChar chars
                     |> Tokenizer.tokenizeString
-                    |> MoreMaybe.isJust
+                    |> Maybe.isJust
                     |> Expect.true "Expected the string tokenizer to succeed."
                 
             , fuzz (tuple (list char, escapeCharFuzz)) "Non-terminated string" <|
@@ -48,7 +49,7 @@ suite =
                             _ -> char :: charList
                     ) [] chars
                     |> Tokenizer.tokenizeString
-                    |> MoreMaybe.isJust >> not
+                    |> Maybe.isJust >> not
                     |> Expect.true "Fails when string is not terminated with brackets"
             ]
             
@@ -57,7 +58,7 @@ suite =
                 \_ ->
                     String.toList "(module)"
                     |> Tokenizer.tokenize
-                    |> Expect.equal (Just [LPar, StringLiteral <| String.toList "module", RPar])
+                    |> Expect.equal (Just [SExpr.LPar, SExpr.Literal <| Tokenizer.String <| String.toList "module", SExpr.RPar])
             
             , test "Empty string" <|
                 \_ ->

@@ -1,4 +1,5 @@
-module Lexer.Instruction.I64 exposing (..)
+module Lexer.Instruction.Numeric.I64 exposing (..)
+
 
 type I64
     = Const

@@ -1,45 +1,49 @@
 module Lexer exposing (..)
 
 import Lexer.Keyword as Keyword exposing (Keyword)
-import MoreList
-import Tokenizer
+import More.List as List
+import SExpr exposing (SExpr)
+import Tokenizer 
     
-type Token 
+type WasmLiteral
     = Keyword Keyword
     | U32 Int
     | I32 Int
     | F32 Float
     | String (List Char)
     | Id (List Char)
-    | LPar
-    | RPar
     -- todo : add reserved identifiers
     
 
+fromTokenizerToken : SExpr.Token Tokenizer.WasmString -> Maybe (SExpr.Token WasmLiteral) 
 fromTokenizerToken token =
     case token of 
-        Tokenizer.LPar -> Just LPar
-        Tokenizer.RPar -> Just RPar
-        Tokenizer.StringLiteral str -> Just <| String str
-        Tokenizer.Id id ->
+        SExpr.LPar -> 
+            Just SExpr.LPar
+        
+        SExpr.RPar -> 
+            Just SExpr.RPar
+        
+        SExpr.Literal (Tokenizer.String str) -> 
+            Just <| SExpr.Literal <| String str
+        
+        SExpr.Literal (Tokenizer.Id id) ->
             case id of
-                '$' :: var -> Just <| Id var
+                '$' :: var -> 
+                    Just <| SExpr.Literal <| Id var
+                
                 _ ->
                     [ Keyword.fromCharList >> Maybe.map Keyword
                     -- todo : add identification for unsigned integers
                     , String.fromList >> String.toInt >> Maybe.map I32
                     , String.fromList >> String.toFloat >> Maybe.map F32
                     ]
-                    |> MoreList.firstJust (\func -> func id)
+                    |> List.firstJust (\func -> func id)
+                    |> Maybe.map SExpr.Literal
 
 
-fromTokenizerTokens : List Tokenizer.Token -> Maybe (List Token)
-fromTokenizerTokens tokens =
-    case tokens of
-        [] -> Just []
-        head :: tail ->
-            fromTokenizerTokens tail
-            |> Maybe.andThen (\newTokens -> fromTokenizerToken head |> Maybe.map (\newHead -> newHead :: newTokens))
+fromTokenizerTokens : List (SExpr.Token Tokenizer.WasmString) -> Maybe (List (SExpr.Token WasmLiteral))
+fromTokenizerTokens tokens = List.tryAll fromTokenizerToken tokens
 
 lex chars = 
     Tokenizer.tokenize chars

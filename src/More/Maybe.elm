@@ -1,4 +1,4 @@
-module MoreMaybe exposing (..)
+module More.Maybe exposing (..)
 
 isJust maybe = 
     case maybe of
