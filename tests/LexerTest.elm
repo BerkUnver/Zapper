@@ -1,20 +1,17 @@
 module LexerTest exposing (..)
 
 import Expect
-import Fuzz exposing (list)
 import Lexer
-import Lexer.Keyword as Keyword
-import More.Maybe as Maybe
 import SExpr
 import Test exposing (..)
 import Tokenizer
 
-
 moduleCharList = 
-    Keyword.Module
-    |> Keyword.toString
+    Lexer.Module
+    |> Lexer.toString
     |> String.toList
-        
+
+{-  
 validTokens = 
     [ SExpr.LPar
     , SExpr.RPar
@@ -26,49 +23,41 @@ fuzzValidTokenizerToken =
     validTokens
     |> List.map Fuzz.constant
     |> Fuzz.oneOf
-    
+-}  
 
     
 suite : Test
 suite = 
     describe "Lexer"
         [ describe "fromTokenizerToken" <|
-            [ test "Invalid string id" <|
+            [ test "Random string turns into instruction" <|
                 \_ ->
-                    String.toList "invalid_id"
-                    |> Tokenizer.Id
+                    let 
+                        str = "invalid_id"
+                        chars = String.toList str
+                    in
+                    
+                    Tokenizer.Id chars
                     |> SExpr.Literal
                     |> Lexer.fromTokenizerToken
-                    |> Expect.equal Nothing 
-                    
-            , fuzz fuzzValidTokenizerToken "Random valid tokens" <|
-                \token ->
-                    Lexer.fromTokenizerToken token
-                    |> Maybe.isJust
-                    |> Expect.true "A single valid tokenizer token token returns (Just (equivalent lexer token))"
+                    |> Expect.equal (SExpr.Literal <| Lexer.Instr str)
             ]
         
         , describe "fromTokenizerTokens"
             [ test "Empty token list" <|
                 \_ ->
                     Lexer.fromTokenizerTokens []
-                    |> Expect.equal (Just [])
+                    |> Expect.equal []
             
             , test "General-case test tokens" <|
                 \_ ->
                     [SExpr.LPar, SExpr.Literal <| Tokenizer.Id moduleCharList, SExpr.RPar]
                     |> Lexer.fromTokenizerTokens
-                    |> Expect.equal (Just [SExpr.LPar, SExpr.Literal <| Lexer.Keyword Keyword.Module, SExpr.RPar])
+                    |> Expect.equal [SExpr.LPar, SExpr.Literal <| Lexer.Module, SExpr.RPar]
                     
-            , fuzz (list fuzzValidTokenizerToken) "Many valid tokenizer tokens" <|
-                \tokens ->
-                    Lexer.fromTokenizerTokens tokens
-                    |> Maybe.isJust
-                    |> Expect.true "Random valid tokenizer tokens make a valid list of lexer tokens"
-            
             , test "Retains order of input tokens" <|
                 \_ ->
                     Lexer.fromTokenizerTokens [SExpr.LPar, SExpr.RPar]
-                    |> Expect.equal (Just [SExpr.LPar, SExpr.RPar])
+                    |> Expect.equal [SExpr.LPar, SExpr.RPar]
             ]
         ]

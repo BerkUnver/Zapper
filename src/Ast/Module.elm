@@ -1,8 +1,7 @@
-module Ast exposing (..)
+module Ast.Module exposing (..)
 
 import Ast.Func as Func exposing (Func)
 import Lexer
-import Lexer.Keyword as Keyword
 import SExpr exposing (SExpr)
 
     
@@ -16,7 +15,7 @@ type alias Ast =
 parseDeclaration sExpr =
     -- todo : add import, export, type alias
     case sExpr of
-        SExpr.List (SExpr.Atom (Lexer.Keyword Keyword.Func) :: SExpr.Atom (Lexer.Id name) :: func) ->
+        SExpr.List (SExpr.Atom Lexer.Func :: SExpr.Atom (Lexer.Var name) :: func) ->
             let 
                 (params, resultsAndBody) = Func.parseParams func
                 (results, body) = Func.parseResults resultsAndBody 
@@ -33,7 +32,7 @@ parseDeclaration sExpr =
         
 parse sExpr = 
     case sExpr of
-        SExpr.List Lexer.Keyword Keyword.Module :: declarations ->
+        SExpr.List Lexer.Module :: declarations ->
             
         _ -> Err "All WASM files must consist of a module enclosed by parenthesis."
         

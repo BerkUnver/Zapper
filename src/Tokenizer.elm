@@ -26,7 +26,7 @@ isWhitespace char =
     |> List.member char    
 
 tokenizeString : List Char -> Maybe (List Char, List Char)
-tokenizeString chars = -- todo : more descriptive errors
+tokenizeString chars =
     let 
         appendStr char tail = 
             tokenizeString tail
