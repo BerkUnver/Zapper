@@ -5,6 +5,6 @@ isJust maybe =
         Just _ -> True
         Nothing -> False
         
-appendIfJust maybeList element =
+andThenCons element maybeList =
     maybeList
     |> Maybe.map (\elements -> element :: elements)

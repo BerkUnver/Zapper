@@ -1,29 +1,19 @@
 module Tokenizer exposing (..)
 
 import More.List as List
-import SExpr as SExpr
 
-type alias Token = SExpr.Token WasmString
-
-type WasmString 
+type Token
     = String (List Char)
     | Id (List Char)
+    | LPar
+    | RPar
+    
 
-toListChar : Token -> List Char
-toListChar token = 
-    case token of
-        SExpr.LPar -> ['(']
-        SExpr.RPar -> [')']
-        SExpr.Literal (String s) -> s
-        SExpr.Literal (Id id) -> id
-
-
-whitespaceChars = [' ', '\n', '\u{0009}']
-
-
+whitespaceChars = [' ', '\n', '\r', '\u{0009}']
 isWhitespace char =
     whitespaceChars
     |> List.member char    
+
 
 tokenizeString : List Char -> Maybe (List Char, List Char)
 tokenizeString chars =
@@ -50,9 +40,7 @@ tokenizeString chars =
                         '"' -> mapRest '"'
                         '\''  -> mapRest '\''
                         '\\' -> mapRest '\\'
-                        -- todo : implement unicode format specifiers in strings
-                        -- todo : implement hex literals
-                        'u' -> Debug.todo "Unicode format specifiers are not currently implemented." 
+                        -- todo : implement unicode format specifiers and hex literals in strings
                         _ -> Nothing
         char :: tail ->
             appendStr char tail
@@ -65,16 +53,18 @@ tokenize chars =
             Just []
             
         head :: tail ->
-            let concatToken token rest = tokenize rest |> Maybe.map (\tokens -> token :: tokens) in
+            let concatToken rest token = tokenize rest |> Maybe.map (\tokens -> token :: tokens) in
             case head of
                 '(' -> 
-                    concatToken SExpr.LPar tail
+                    concatToken tail LPar
                 ')' ->
-                    concatToken SExpr.RPar tail
+                    concatToken tail RPar
                 '"' -> 
                     -- todo : add error message for strings that end and don't have whitespace/parenthesis after
                     tokenizeString tail
-                    |> Maybe.andThen (\(str, rest) -> concatToken (SExpr.Literal <| String str) rest)
+                    |> Maybe.andThen (\(str, rest) -> 
+                        String str
+                        |> concatToken rest)
                 _ ->
                     -- todo : Check for non-7-bit ASCII characters and give error
                     -- todo : Check for line comments
@@ -86,4 +76,6 @@ tokenize chars =
                             (datum, rest) = 
                                 List.splitFirstTrue (\c -> c == '(' || c == ')' || isWhitespace c ) tail
                         in
-                        concatToken (SExpr.Literal <| String <| head :: datum) rest
+                        head :: datum
+                        |> Id
+                        |> concatToken rest

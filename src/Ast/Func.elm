@@ -1,9 +1,10 @@
 module Ast.Func exposing (..)
 
-import Lexer
+import Ast.Instruction as Instruction exposing (Instruction)
+import Format
+import Lexer exposing (Token(..))
 import NumType exposing (NumType)
 import More.List as List
-import SExpr exposing (SExpr)
  
 
 -- todo : Add anonymous params, locals, and functions that can be accessed only by index.
@@ -15,10 +16,20 @@ type alias Param =
     }
 
 
+paramToString : Param -> String
+paramToString param = 
+    "(param $" ++ param.name ++ " " ++ NumType.toString param.dataType ++ ")"
+    
+    
 type alias Local = 
     { name : String
     , dataType : NumType
     }
+    
+    
+localToString : Local -> String
+localToString local =
+    "(local $" ++ local.name ++ " " ++ NumType.toString local.dataType ++ ")"
     
 
 type alias Func = 
@@ -26,65 +37,82 @@ type alias Func =
     , params : List Param
     , results : List NumType
     , locals : List Local
-    , body : () -- todo : Add body of function
+    , body : List Instruction
     }
 
 
-parseParam : SExpr Lexer.Token -> Maybe Param
+resultToString : NumType -> String
+resultToString numType = 
+    "(result $" ++ NumType.toString numType ++ ")" 
+
+
+toString : Func -> String
+toString func = 
+    let 
+        funcStr = 
+            "(func $" ++ func.name ++ " " 
+            ++ String.join " " (List.map paramToString func.params)
+            ++ " "
+            ++ String.join " " (List.map resultToString func.results)
+            ++ " (\n"
+    in
+    func.body
+    |> List.map (Instruction.toString >> Format.indent)
+    |> String.join "\n"
+    |> \x -> funcStr ++ x ++ "\n)"
+
+    
+parseParam : Lexer.Token -> Maybe Param
 parseParam param =
     case param of
-        SExpr.List 
-            [ SExpr.Atom Lexer.Param
-            , SExpr.Atom (Lexer.Var name)
-            , SExpr.Atom (Lexer.NumType t)
-            ] -> 
+        Scope [Lexer.Param, Var name, NumType t] -> 
             Just { name = name, dataType = t }
-        
         _ -> Nothing
         
 
-parseParams : List (SExpr Lexer.Token) -> (List Param, List (SExpr Lexer.Token))
+parseParams : List Lexer.Token -> (List Param, List Lexer.Token)
 parseParams funcSExpr = List.mapUntilNothing parseParam funcSExpr 
         
         
-parseResult : SExpr Lexer.Token -> Maybe NumType
+parseResult : Lexer.Token -> Maybe NumType
 parseResult result =
     case result of
-        SExpr.List [SExpr.Atom Lexer.Param, SExpr.Atom (Lexer.NumType t)] -> 
+        Scope [Lexer.Result, Lexer.NumType t] -> 
             Just t
         _ -> Nothing
         
 
-parseResults : List (SExpr Lexer.Token) -> (List NumType, List (SExpr Lexer.Token))
+parseResults : List Lexer.Token -> (List NumType, List Lexer.Token)
 parseResults funcSExpr = List.mapUntilNothing parseResult funcSExpr
 
 
-parseLocal : SExpr Lexer.Token -> Maybe Local
+parseLocal : Lexer.Token -> Maybe Local
 parseLocal local = 
     case local of 
-        SExpr.List [SExpr.Atom Lexer.Param, SExpr.Atom (Lexer.Var var), SExpr.Atom (Lexer.NumType t)] ->
+        Scope [Lexer.Local, Var var, NumType t] ->
             Just {name = var, dataType = t}
         _ -> Nothing
 
 
-parseLocals : List (SExpr Lexer.Token) -> (List Local, List (SExpr Lexer.Token))
+parseLocals : List Lexer.Token -> (List Local, List Lexer.Token)
 parseLocals func = List.mapUntilNothing parseLocal func
 
 
-parse : List (SExpr Lexer.Token) -> Maybe Func
+parse : List Lexer.Token -> Maybe Func
 parse func = 
     case func of
-        SExpr.Atom Lexer.Func :: SExpr.Atom (Lexer.Var name) :: paramsResultsLocalsBody ->
+        Lexer.Func :: Var name :: paramsResultsLocalsBody ->
             let
                 (params, resultsLocalsBody) = parseParams paramsResultsLocalsBody
                 (results, localsBody) = parseResults resultsLocalsBody
-                (locals, _) = parseLocals localsBody
+                (locals, body) = parseLocals localsBody
             in
-                { name = name
-                , params = params
-                , results = results
-                , locals = locals
-                , body = ()
-                }
-                |> Just -- This is just like this until parsing the body of the function is added
+            Instruction.parseBody body
+            |> Maybe.map (\parsedBody ->
+            { name = name
+            , params = params
+            , results = results
+            , locals = locals
+            , body = parsedBody
+            })
         _ -> Nothing

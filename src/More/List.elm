@@ -77,3 +77,4 @@ tryAll func list =
                 |> Maybe.map (\rest -> result :: rest))
         
         [] -> Just []
+        

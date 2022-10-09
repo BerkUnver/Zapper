@@ -1,8 +1,10 @@
 module Ast.Instruction exposing (..)
         
 import Dict
+import Format
 import Lexer exposing (Token(..))
-import SExpr exposing (SExpr(..))
+import More.List as List
+
 
 type Instruction
     
@@ -16,9 +18,9 @@ type Instruction
     
     | Nop
     | Unreachable
-    | Block {name : String, body : List Instruction}
-    | Loop {name : String, body : List Instruction}
-    | If {thenBlock : List Instruction, elseBlock : List Instruction}
+    | Block {label : String, body : List Instruction}
+    | Loop {label : String, body : List Instruction}
+    | If {label : String, thenBlock : List Instruction, elseBlock : List Instruction}
     -- todo : br, br_if, br_table, return, call, call_indirect
     
     | I32Const Int | I64Const Int | F32Const Float | F64Const Float
@@ -28,9 +30,62 @@ type Instruction
     | I32And | I64And | F32And | F64And
     | I32Or | I64Or | F32Or | F64Or 
     | I32Xor | I64Xor | F32Xor | F64Xor
+    
     -- todo : clz, ctz, popcnt, div, rem_... instructions, skipping because idk how well this maps to Elm
 
 
+toString : Instruction -> String
+toString instr =
+    let indentInstructions i = i |> List.map toString |> String.join "\n" |> Format.indent in
+    case instr of
+        LocalGet str -> 
+            "local.get $" ++ str
+            
+        LocalSet str -> 
+            "local.set $" ++ str
+            
+        LocalTee str -> 
+            "local.tee $" ++ str 
+            
+        Nop ->
+            "nop"
+        
+        Unreachable -> 
+            "unreachable"
+        
+        Block block -> 
+            "(block $" ++ block.label ++ "\n" ++ indentInstructions block.body ++ "\n)"
+        
+        Loop loop -> 
+            "(loop $" ++ loop.label ++ "\n" ++ indentInstructions loop.body ++ "\n)"
+            
+        If ifInstr -> 
+            let 
+                if_ = "(if $" ++ ifInstr.label ++ "\n"
+                then_ = Format.indent <| "(then\n" ++ indentInstructions ifInstr.thenBlock ++ "\n)"
+                else_ = Format.indent <| "(else\n" ++ indentInstructions ifInstr.elseBlock ++ "\n)"
+                end = ")"
+            in
+            if_ ++ then_ ++ "\n" ++ else_ ++ "\n)"
+        
+        I32Const i -> 
+            "i32.const" ++ String.fromInt i
+        
+        I64Const i ->
+            "i64.const" ++ String.fromInt i
+            
+        F32Const i -> 
+            "f32.const" ++ String.fromFloat i
+        
+        F64Const i ->
+            "f64.const" ++ String.fromFloat i
+            
+        _ ->
+            singleNumericOps
+            |> List.firstJust (\(str, op) -> if op == instr then Just str else Nothing)
+            |> Maybe.withDefault "unknown_instruction"
+        
+            
 singleNumericOps = 
     [ ("i32.add", I32Add)
     , ("i64.add", I64Add)
@@ -65,35 +120,44 @@ stringToSingleNumeric = Dict.fromList singleNumericOps
 
 parseSingle tokens = 
     case tokens of 
-        Atom (Instr "local.get") :: Atom (Var name) :: tail ->
+        Instr "local.get" :: Var name :: tail ->
             Just (LocalGet name, tail)
         
-        Atom (Instr "local.set") :: Atom (Var name) :: tail ->
+        Instr "local.set" :: Var name :: tail ->
             Just (LocalSet name, tail)
         
-        Atom (Instr "local.tee") :: Atom (Var name) :: tail ->
+        Instr "local.tee" :: Var name :: tail ->
             Just (LocalTee name, tail)
         
-        Atom (Instr "nop") :: tail ->
+        Instr "nop" :: tail ->
             Just (Nop, tail)
         
-        Atom (Instr "unreachable") :: tail ->
+        Instr "unreachable" :: tail ->
             Just (Unreachable, tail)
         
-        SExpr.List (Atom (Instr "block") :: Atom (Var name) :: blockBody) :: tail ->
+        Scope (Instr "block" :: Var name :: blockBody) :: tail ->
             parseBody blockBody
-            |> Maybe.map (\body -> (Block {name = name, body = body}, tail))
+            |> Maybe.map (\body -> (Block {label = name, body = body}, tail))
             
-        SExpr.List (Atom (Instr "loop") :: Atom (Var name) :: loopBody) :: tail ->
+        Scope (Instr "loop" :: Var name :: loopBody) :: tail ->
             parseBody loopBody
-            |> Maybe.map (\body -> (Loop {name = name, body = body}, tail))
+            |> Maybe.map (\body -> (Loop {label = name, body = body}, tail))
         
-        -- todo : if, loop + block + if unfolded
-        Atom (Instr instr) :: tail ->
+        -- todo : loop + block + if unfolded
+        
+        Scope [Instr "if", Var name, Scope (Instr "then" :: ifBody), Scope (Instr "else" :: elseBody)] :: tail ->
+            parseBody ifBody
+            |> Maybe.andThen (\thenB ->
+            parseBody elseBody
+            |> Maybe.map 
+            (\elseB -> (If {label = name, thenBlock = thenB, elseBlock = elseB}, tail))) 
+            
+        -- todo : Normal folded                        
+        Instr instr :: tail ->
             let 
                 operand =
                     case tail of
-                        Atom a :: rest -> Just (a, rest)
+                        head :: rest -> Just (head, rest)
                         _ -> Nothing
                                          
                 ifRandInt func = 
@@ -125,7 +189,7 @@ parseBody tokens =
         _ -> 
             parseSingle tokens
             |> Maybe.andThen (\(i, rest) ->
-                parseBody rest |> Maybe.map (\instructions ->
-                    i :: instructions))
+            parseBody rest |> Maybe.map (\instructions ->
+            i :: instructions))
 
         

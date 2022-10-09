@@ -1,8 +1,10 @@
 module Ast.Module exposing (..)
 
 import Ast.Func as Func exposing (Func)
-import Lexer
-import SExpr exposing (SExpr)
+import Ast.Instruction as Instruction
+import Format
+import Lexer exposing (Token(..))
+import More.List as List
 
     
 
@@ -11,28 +13,27 @@ type alias Ast =
     -- todo : add export, import, type alias
 
 
+toString ast = 
+    ast.functions
+    |> List.map (Func.toString >> Format.indent)
+    |> String.join "\n\n"
+    |> \x -> "(module\n" ++ x ++ "\n)"
+    
+        
 
 parseDeclaration sExpr =
     -- todo : add import, export, type alias
     case sExpr of
-        SExpr.List (SExpr.Atom Lexer.Func :: SExpr.Atom (Lexer.Var name) :: func) ->
-            let 
-                (params, resultsAndBody) = Func.parseParams func
-                (results, body) = Func.parseResults resultsAndBody 
-            in
-            { name = name
-            , params = params
-            , results = results
-            , body = ()
-            }
-            -- todo : be able to parse body
-            |> Ok
-        _ -> Err "Valid function declarations consist of the function keyword, a function name, parameters, return types, and a body."
+        Scope scope ->
+            Func.parse scope
+        _ -> Nothing
             
-        
+    
 parse sExpr = 
     case sExpr of
-        SExpr.List Lexer.Module :: declarations ->
-            
-        _ -> Err "All WASM files must consist of a module enclosed by parenthesis."
+        Scope (Module :: declarations) ->
+            declarations
+            |> List.tryAll parseDeclaration
+            |> Maybe.map (\functions -> {functions = functions})
+        _ -> Nothing
         

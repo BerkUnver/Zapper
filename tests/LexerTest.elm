@@ -2,62 +2,29 @@ module LexerTest exposing (..)
 
 import Expect
 import Lexer
-import SExpr
 import Test exposing (..)
 import Tokenizer
-
-moduleCharList = 
-    Lexer.Module
-    |> Lexer.toString
-    |> String.toList
-
-{-  
-validTokens = 
-    [ SExpr.LPar
-    , SExpr.RPar
-    , SExpr.Literal <| Tokenizer.String <| String.toList "valid string literal"
-    , SExpr.Literal <| Tokenizer.Id moduleCharList
-    ]
-
-fuzzValidTokenizerToken = 
-    validTokens
-    |> List.map Fuzz.constant
-    |> Fuzz.oneOf
--}  
-
     
 suite : Test
 suite = 
     describe "Lexer"
-        [ describe "fromTokenizerToken" <|
-            [ test "Random string turns into instruction" <|
+        [ describe "parse"
+            [ test "Single literal" <| 
                 \_ ->
-                    let 
-                        str = "invalid_id"
-                        chars = String.toList str
-                    in
-                    
-                    Tokenizer.Id chars
-                    |> SExpr.Literal
-                    |> Lexer.fromTokenizerToken
-                    |> Expect.equal (SExpr.Literal <| Lexer.Instr str)
-            ]
-        
-        , describe "fromTokenizerTokens"
-            [ test "Empty token list" <|
-                \_ ->
-                    Lexer.fromTokenizerTokens []
-                    |> Expect.equal []
+                    [Tokenizer.String []]
+                    |> Lexer.lex
+                    |> Expect.equal (Just <| Lexer.String "")  
             
-            , test "General-case test tokens" <|
+            , test "List with single literal" <|
                 \_ ->
-                    [SExpr.LPar, SExpr.Literal <| Tokenizer.Id moduleCharList, SExpr.RPar]
-                    |> Lexer.fromTokenizerTokens
-                    |> Expect.equal [SExpr.LPar, SExpr.Literal <| Lexer.Module, SExpr.RPar]
+                    [Tokenizer.LPar, Tokenizer.String [], Tokenizer.RPar]
+                    |> Lexer.lex
+                    |> Expect.equal (Just <| Lexer.Scope [Lexer.String ""])
                     
-            , test "Retains order of input tokens" <|
+            , test "Recursive parse" <|
                 \_ ->
-                    Lexer.fromTokenizerTokens [SExpr.LPar, SExpr.RPar]
-                    |> Expect.equal [SExpr.LPar, SExpr.RPar]
+                    [Tokenizer.LPar, Tokenizer.LPar, Tokenizer.String [], Tokenizer.RPar, Tokenizer.LPar, Tokenizer.RPar, Tokenizer.RPar]
+                    |> Lexer.lex
+                    |> Expect.equal (Just <| Lexer.Scope [Lexer.Scope [Lexer.String ""], Lexer.Scope []])
             ]
         ]

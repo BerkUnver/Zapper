@@ -1,9 +1,8 @@
 module TokenizerTest exposing (suite)
 
 import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer, tuple, char, int, list, string)
+import Fuzz exposing (Fuzzer, tuple, char, list)
 import More.Maybe as Maybe
-import SExpr
 import Test exposing (..)
 import Tokenizer
 
@@ -58,7 +57,7 @@ suite =
                 \_ ->
                     String.toList "(module)"
                     |> Tokenizer.tokenize
-                    |> Expect.equal (Just [SExpr.LPar, SExpr.Literal <| Tokenizer.String <| String.toList "module", SExpr.RPar])
+                    |> Expect.equal (Just [Tokenizer.LPar, Tokenizer.Id <| String.toList "module", Tokenizer.RPar])
             
             , test "Empty string" <|
                 \_ ->

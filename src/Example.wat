@@ -11,9 +11,9 @@
     ;; (func $justResult (result i32)) ;; Fails at the typechecker phase
 
 
-    (func $complex (param i32) (param i32) ;; Idk what's happening here
-        i32.add 
-        (local.get 1)
-        (local.get 0)
+    (func $complex (param i32) (param i32)
+        i32.const 0
+        i32.const 1
+        (i32.add (i32.const 0) (local.get 0))
     )
 )
