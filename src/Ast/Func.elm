@@ -3,6 +3,7 @@ module Ast.Func exposing (..)
 import Ast.Instruction as Instruction exposing (Instruction)
 import Format
 import Lexer exposing (Token(..))
+import More.String as String
 import NumType exposing (NumType)
 import More.List as List
  
@@ -43,25 +44,19 @@ type alias Func =
 
 resultToString : NumType -> String
 resultToString numType = 
-    "(result $" ++ NumType.toString numType ++ ")" 
+    "(result " ++ NumType.toString numType ++ ")" 
 
 
 toString : Func -> String
 toString func = 
-    let 
-        funcStr = 
-            "(func $" ++ func.name ++ " " 
-            ++ String.join " " (List.map paramToString func.params)
-            ++ " "
-            ++ String.join " " (List.map resultToString func.results)
-            ++ " (\n"
-    in
-    func.body
-    |> List.map (Instruction.toString >> Format.indent)
-    |> String.join "\n"
-    |> \x -> funcStr ++ x ++ "\n)"
-
-    
+    "(func $" ++ func.name 
+    ++ String.joinWithFirst " " (List.map paramToString func.params)
+    ++ String.joinWithFirst " " (List.map resultToString func.results)
+    ++ String.joinWithFirst Format.newLineTab (List.map localToString func.locals)
+    ++ (Format.indentBody <| String.joinWithFirst "\n" <| List.map Instruction.toString func.body)
+    ++ "\n)"
+            
+            
 parseParam : Lexer.Token -> Maybe Param
 parseParam param =
     case param of
@@ -107,7 +102,7 @@ parse func =
                 (results, localsBody) = parseResults resultsLocalsBody
                 (locals, body) = parseLocals localsBody
             in
-            Instruction.parseBody body
+            Instruction.parse body
             |> Maybe.map (\parsedBody ->
             { name = name
             , params = params

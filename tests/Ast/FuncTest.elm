@@ -2,7 +2,7 @@ module Ast.FuncTest exposing (..)
 
 import Ast.Func as Func
 import Expect
-import Fuzz exposing (list, tuple3)
+import Fuzz exposing (list)
 import Lexer exposing (Token(..))
 import NumTypeTest
 import Test exposing (Test, describe, fuzz, test)
@@ -28,7 +28,9 @@ localFuzz =
     nameTypeFuzz
     |> Fuzz.map (\(name, t) -> {name = name, dataType = t})
     
-
+funcDeclarationFuzz = 
+    ((\name params results locals -> {name = name, params = params, results = results, locals = locals, body = []})
+    |> Fuzz.map4) Fuzz.string (list paramFuzz) (list resultFuzz) (list localFuzz)
 
 suite : Test
 suite = 
@@ -84,12 +86,18 @@ suite =
                 |> Expect.equal (locals, [])
             ]
         
-        --, describe "parse" <|
-        --
-        --    [ fuzz (tuple3 (list localFuzz, list NumTypeTest.numTypeFuzz, list nameTypeFuzz) "general" <|
-        --        \(locals, params, results) ->
-        --        results
-        --        |> list.map
-        --        Func.parse
-        --    ]
+        , describe "parse" <|
+            [ fuzz funcDeclarationFuzz "empty body, fuzzed declaration." <|
+                \func ->
+                List.foldr (\local list -> Scope [Local, Var local.name, NumType local.dataType] :: list) [] func.locals
+                |> (\tail -> List.foldr (\result list -> Scope [Result, NumType result] :: list) tail func.results)
+                |> (\tail -> List.foldr (\param list -> Scope [Param, Var param.name, NumType param.dataType] :: list) tail func.params)
+                |> (\tail -> Func :: Var func.name :: tail)
+                |> Func.parse
+                |> Expect.equal (Just func)
+            
+            -- , test "strange failure case" <|
+            --     \_ ->
+            --     Func :: Var "folded" :: Scope []
+            ]
         ]

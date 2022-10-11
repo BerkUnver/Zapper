@@ -1,10 +1,10 @@
 module Ast.Module exposing (..)
 
 import Ast.Func as Func exposing (Func)
-import Ast.Instruction as Instruction
 import Format
 import Lexer exposing (Token(..))
 import More.List as List
+import Tokenizer
 
     
 
@@ -37,3 +37,10 @@ parse sExpr =
             |> Maybe.map (\functions -> {functions = functions})
         _ -> Nothing
         
+
+parse360 str =
+    String.toList str
+    |> Tokenizer.tokenize
+    |> Maybe.andThen Lexer.lex
+    |> Maybe.andThen parse
+    |> Maybe.map toString
