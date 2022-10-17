@@ -28,9 +28,11 @@ localFuzz =
     nameTypeFuzz
     |> Fuzz.map (\(name, t) -> {name = name, dataType = t})
     
+
 funcDeclarationFuzz = 
     ((\name params results locals -> {name = name, params = params, results = results, locals = locals, body = []})
     |> Fuzz.map4) Fuzz.string (list paramFuzz) (list resultFuzz) (list localFuzz)
+
 
 suite : Test
 suite = 
@@ -94,10 +96,6 @@ suite =
                 |> (\tail -> List.foldr (\param list -> Scope [Param, Var param.name, NumType param.dataType] :: list) tail func.params)
                 |> (\tail -> Func :: Var func.name :: tail)
                 |> Func.parse
-                |> Expect.equal (Just func)
-            
-            -- , test "strange failure case" <|
-            --     \_ ->
-            --     Func :: Var "folded" :: Scope []
+                |> Expect.equal (Ok func)
             ]
         ]

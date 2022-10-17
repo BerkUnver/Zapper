@@ -13,18 +13,18 @@ suite =
                 \_ ->
                     [Tokenizer.String []]
                     |> Lexer.lex
-                    |> Expect.equal (Just <| Lexer.String "")  
+                    |> Expect.equal (Ok <| Lexer.String "")  
             
             , test "List with single literal" <|
                 \_ ->
                     [Tokenizer.LPar, Tokenizer.String [], Tokenizer.RPar]
                     |> Lexer.lex
-                    |> Expect.equal (Just <| Lexer.Scope [Lexer.String ""])
+                    |> Expect.equal (Ok <| Lexer.Scope [Lexer.String ""])
                     
             , test "Recursive parse" <|
                 \_ ->
                     [Tokenizer.LPar, Tokenizer.LPar, Tokenizer.String [], Tokenizer.RPar, Tokenizer.LPar, Tokenizer.RPar, Tokenizer.RPar]
                     |> Lexer.lex
-                    |> Expect.equal (Just <| Lexer.Scope [Lexer.Scope [Lexer.String ""], Lexer.Scope []])
+                    |> Expect.equal (Ok <| Lexer.Scope [Lexer.Scope [Lexer.String ""], Lexer.Scope []])
             ]
         ]

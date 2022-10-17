@@ -21,26 +21,29 @@ toString ast =
     
         
 
+parseDeclaration : Token -> Result String Func
 parseDeclaration sExpr =
     -- todo : add import, export, type alias
     case sExpr of
         Scope scope ->
             Func.parse scope
-        _ -> Nothing
+        _ -> Err (Debug.toString sExpr ++ " is not a valid module-level declaration.")
             
-    
+
+parse : Token -> Result String Ast
 parse sExpr = 
     case sExpr of
         Scope (Module :: declarations) ->
             declarations
-            |> List.tryAll parseDeclaration
-            |> Maybe.map (\functions -> {functions = functions})
-        _ -> Nothing
-        
+            |> List.allOk parseDeclaration
+            |> Result.map (\functions -> {functions = functions})
+        _ -> Err "The top-level construct is not a module."
 
+
+parse360 : String -> Result String String
 parse360 str =
     String.toList str
     |> Tokenizer.tokenize
-    |> Maybe.andThen Lexer.lex
-    |> Maybe.andThen parse
-    |> Maybe.map toString
+    |> Result.andThen Lexer.lex
+    |> Result.andThen parse
+    |> Result.map toString

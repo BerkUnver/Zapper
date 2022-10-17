@@ -11,12 +11,12 @@ suite =
         [ describe "tryAll"
             [ test "Empty list" <|
                 \_ -> 
-                    List.tryAll (\_ -> Just ()) []
+                    List.allJust (\_ -> Just ()) []
                     |> Expect.equal (Just [])
             
             , fuzz (list (maybe unit)) "Hits a nothing mid-list" <|
                 \list ->
-                    let result = List.tryAll identity list in
+                    let result = List.allJust identity list in
                     if List.contains Nothing list then
                         Expect.equal Nothing result
                     else
@@ -26,7 +26,7 @@ suite =
             , test "Applies in the correct order" <|
                 \_ ->
                     [Just 1, Just 2, Just 3]
-                    |> List.tryAll identity
+                    |> List.allJust identity
                     |> Expect.equal (Just [1, 2, 3])
             ]
         ]

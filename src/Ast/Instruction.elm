@@ -9,7 +9,7 @@ import More.String as String
 
 type FoldedInstr
     = FInstr (Instruction, List FoldedInstr)
-    | FIf {label : String, folded : List FoldedInstr,  thenBlock : List Instruction, elseBlock : List Instruction}
+    | FIf {label : Maybe String, folded : List FoldedInstr,  thenBlock : List Instruction, elseBlock : List Instruction}
     | FLoop {label : String, body : List Instruction}
     | FBlock {label : String, body : List Instruction}
     
@@ -27,7 +27,7 @@ type Instruction
     | Unreachable
     | Block {label : String, body : List Instruction}
     | Loop {label : String, body : List Instruction}
-    | If {label : String, thenBlock : List Instruction, elseBlock : List Instruction}
+    | If {label : Maybe String, thenBlock : List Instruction, elseBlock : List Instruction}
     | Br String
     | BrIf String
     | Return
@@ -95,7 +95,9 @@ foldedToString instr =
             
         FIf ifInstr ->
             let 
-                if_ = "(if $" ++ ifInstr.label ++ String.joinWithFirst " " (List.map foldedToString ifInstr.folded) ++ "\n"
+                if_ = 
+                    "(if" ++ Maybe.withDefault "" (Maybe.map (\x -> " $" ++ x) ifInstr.label)
+                    ++ String.joinWithFirst " " (List.map foldedToString ifInstr.folded) ++ "\n"
                 then_ = Format.indent <| "(then" ++ indentInstructions ifInstr.thenBlock ++ "\n)"
                 else_ = Format.indent <| "(else" ++ indentInstructions ifInstr.elseBlock ++ "\n)"
             in
@@ -137,7 +139,7 @@ toString instr =
             ++ "\nend"
        
         If if_ ->
-            "if $" ++ if_.label 
+            "if" ++ Maybe.withDefault "" (Maybe.map (\x -> " $" ++ x) if_.label)
             ++ indentInstructions if_.thenBlock 
             ++ "\nelse"
             ++ indentInstructions if_.elseBlock
@@ -220,94 +222,107 @@ singleNumericOps =
 stringToSingleNumeric = Dict.fromList singleNumericOps
 
 
-parseFolded : List Token -> Maybe FoldedInstr
+parseFolded : List Token -> Result String FoldedInstr
 parseFolded tokens = 
     let
         parseFoldedNormal t = 
             case t of 
                 Scope folded ->
                     parseFolded folded
-                _ -> Nothing
+                _ -> Err "Folded expression is illegal."
+        
+        parseIf name body = 
+            case body of 
+                [Scope (Instr "then" :: thenBody), Scope (Instr "else" :: elseBody)] ->
+                    parse thenBody
+                    |> Result.andThen (\thenB ->
+                        parse elseBody
+                        |> Result.map (\elseB -> {label = name, folded = [], thenBlock = thenB, elseBlock = elseB}))
+                        
+                Scope instructions :: tail ->
+                    parseFolded instructions
+                    |> Result.andThen (\folded -> 
+                        parseIf name tail 
+                        |> Result.map (\x -> {x | folded = folded :: x.folded}))
+                
+                _ -> Err "Instructions after an if statement must be folded."
+        
+        parseIfToFolded name body =
+            parseIf name body 
+            |> Result.map FIf
     in
     case tokens of 
         Instr "block" :: Var name :: blockBody ->
             parse blockBody
-            |> Maybe.map (\body -> FBlock {label = name, body = body})
+            |> Result.map (\body -> FBlock {label = name, body = body})
             
         Instr "loop" :: Var name :: loopBody ->
             parse loopBody
-            |> Maybe.map (\body -> FLoop {label = name, body = body})
-            
-        Instr "if" ::  Var name :: ifBody ->
-            let 
-                parseIf body = 
-                    case body of 
-                        [Scope (Instr "then" :: thenBody), Scope (Instr "else" :: elseBody)] ->
-                            parse thenBody
-                            |> Maybe.andThen (\thenB ->
-                                parse elseBody
-                                |> Maybe.map (\elseB -> {label = name, folded = [], thenBlock = thenB, elseBlock = elseB}))
-                                
-                        Scope instructions :: tail ->
-                            parseFolded instructions
-                            |> Maybe.andThen (\folded -> 
-                                parseIf tail 
-                                |> Maybe.map (\x -> {x | folded = folded :: x.folded}))
-                        
-                        _ -> Nothing
-            in
-            parseIf ifBody
-            |> Maybe.map FIf
+            |> Result.map (\body -> FLoop {label = name, body = body})
         
-        _ -> 
+        Instr "if" :: Var name :: ifBody ->
+            parseIfToFolded (Just name) ifBody
+            
+        Instr "if" :: ifBody ->
+            parseIfToFolded Nothing ifBody
+        
+        _ ->    
             parseSingle tokens
-           |> Maybe.andThen (\(folded, tail) -> 
-               List.tryAll parseFoldedNormal tail
-               |> Maybe.map (\x -> FInstr (folded, x)))
+           |> Result.andThen (\(folded, tail) -> 
+               List.allOk parseFoldedNormal tail
+               |> Result.map (\x -> FInstr (folded, x)))
     
     
+parseSingle : List Token -> Result String (Instruction, List Token)
 parseSingle tokens =
+    let 
+        parseIf name body = 
+            parseToSymbol "else" body
+                |> Result.andThen (\(thenB, elseTokens) ->
+                    parseToEndToken elseTokens
+                    |> Result.map (\(elseB, rest) -> (If {label = name, thenBlock = thenB, elseBlock = elseB}, rest)))
+    in       
     case tokens of 
         Instr "local.get" :: Var name :: tail ->
-            Just (LocalGet name, tail)
+            Ok (LocalGet name, tail)
         
         Instr "local.set" :: Var name :: tail ->
-            Just (LocalSet name, tail)
+            Ok (LocalSet name, tail)
         
         Instr "local.tee" :: Var name :: tail ->
-            Just (LocalTee name, tail)
+            Ok (LocalTee name, tail)
             
         Instr "block" :: Var name :: tail ->
             parseToEndToken tail
-            |> Maybe.map (\(block, rest) -> (Block {label = name, body = block}, rest))
+            |> Result.map (\(block, rest) -> (Block {label = name, body = block}, rest))
             
         Instr "loop" :: Var name :: tail ->
             parseToEndToken tail
-            |> Maybe.map (\(loop, rest) -> (Loop {label = name, body = loop}, rest))   
+            |> Result.map (\(loop, rest) -> (Loop {label = name, body = loop}, rest))   
             
-        Instr "if" :: Var name :: tail -> 
-            parseToSymbol "else" tail
-            |> Maybe.andThen (\(thenB, elseTokens) ->
-                parseToEndToken elseTokens
-                |> Maybe.map (\(elseB, rest) -> (If {label = name, thenBlock = thenB, elseBlock = elseB}, rest)))                 
+        Instr "if" :: Var name :: tail ->
+            parseIf (Just name) tail             
+        
+        Instr "if" :: tail ->
+            parseIf Nothing tail
         
         Instr "br" :: Var name :: tail ->
-            Just (Br name, tail)
+            Ok (Br name, tail)
             
         Instr "br_if" :: Var name :: tail ->
-            Just (BrIf name, tail)
+            Ok (BrIf name, tail)
         
         Instr "nop" :: tail ->
-            Just (Nop, tail)
+            Ok (Nop, tail)
         
         Instr "unreachable" :: tail ->
-            Just (Unreachable, tail)
+            Ok (Unreachable, tail)
         
         Instr "return" :: tail ->
-            Just (Return, tail)
+            Ok (Return, tail)
         
         Instr "call" :: Var name :: tail ->
-            Just (Call name, tail)
+            Ok (Call name, tail)
                        
         
         Instr instr :: tail ->
@@ -319,14 +334,14 @@ parseSingle tokens =
                                          
                 ifRandInt func = 
                     case operand of
-                        Just (UInt i, rest) -> Just <| (func i, rest)
-                        Just (Int i, rest) -> Just <| (func i, rest)
-                        _ -> Nothing
+                        Just (UInt i, rest) -> Ok (func i, rest)
+                        Just (Int i, rest) -> Ok (func i, rest)
+                        _ -> Err "Operand is not an integer"
                 
                 ifRandFloat func =
                     case operand of
-                        Just (Float f, rest) -> Just <| (func f, rest)
-                        _ -> Nothing
+                        Just (Float f, rest) -> Ok (func f, rest)
+                        _ -> Err "Operand is not floating-point."
             in 
             case instr of
                 "i32.const" -> ifRandInt I32Const  
@@ -336,10 +351,11 @@ parseSingle tokens =
                 _ ->
                     Dict.get instr stringToSingleNumeric
                     |> Maybe.map (\i -> (i, tail))
+                    |> Result.fromMaybe ("The instruction \"" ++ instr ++ "\" is not recognized.")
         
         Scope instructions :: tail ->
             parseFolded instructions
-            |> Maybe.map (\i -> (Folded i, tail))
+            |> Result.map (\i -> (Folded i, tail))
         
         _ -> Debug.todo "rest of instructions"
 
@@ -348,15 +364,18 @@ parseToSymbol name tokens =
     let 
         parseNormally () = 
            parseSingle tokens
-           |> Maybe.andThen (\(instr, tail) -> 
-               parseToEndToken tail |> Maybe.map (\(instructions, unparsed) -> 
+           |> Result.andThen (\(instr, tail) -> 
+               parseToEndToken tail |> Result.map (\(instructions, unparsed) -> 
                    (instr :: instructions, unparsed))) 
     in
     case tokens of 
-        [] -> Nothing
+        [] -> 
+            "Expected symbol \"" ++ name ++ "\" not found."
+            |> Err
+             
         Instr instr :: tail ->
             if instr == name then
-                Just ([], tail)
+                Ok ([], tail)
             else 
                 parseNormally ()
         _ ->
@@ -366,13 +385,12 @@ parseToSymbol name tokens =
 parseToEndToken tokens = 
     parseToSymbol "end" tokens
 
-                
+
+parse : List Token -> Result String (List Instruction)
 parse tokens =
     case tokens of
         [] -> 
-            Just []
+            Ok []
         _ -> 
             parseSingle tokens
-            |> Maybe.andThen (\(i, rest) -> parse rest |> Maybe.map (\instructions -> i :: instructions))
-
-        
+            |> Result.andThen (\(i, rest) -> parse rest |> Result.map (\instructions -> i :: instructions))

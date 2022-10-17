@@ -33,9 +33,9 @@ suite =
         [ test "simple addition function" <|
             \_ ->
                 Module.parse360 addFunc
-                |> Expect.equal (Just addFunc)
+                |> Expect.equal (Ok addFunc)
         , test "simple factorial function" <|
             \_ ->
             Module.parse360 factFunc
-            |> Expect.equal (Just factFunc)     
+            |> Expect.equal (Ok factFunc)     
         ]

@@ -49,45 +49,47 @@ parseId id =
                     |> Maybe.withDefault (Instr str)         
 
     
-lex : List Tokenizer.Token -> Maybe Token
-lex tokens = 
+lex : List Tokenizer.Token -> Result String Token
+lex tokens =
     case tokens of 
         [] -> 
-            Nothing
+            Err "Empty list of tokens."
         Tokenizer.LPar :: tail ->
             let 
+                parseTail : List Tokenizer.Token -> Result String (List Token, List Tokenizer.Token)
                 parseTail tailTokens = 
                     case tailTokens of
                         [] ->
-                            Nothing
+                            Err "Unclosed parenthesis."
                             
                         Tokenizer.RPar :: restTokens ->
-                            Just ([], restTokens)
+                            Ok ([], restTokens)
                         
                         Tokenizer.Id id :: restTokens -> 
                             parseTail restTokens
-                            |> Maybe.map (\(listSExpr, rest) -> (parseId id :: listSExpr, rest))
+                            |> Result.map (\(listSExpr, rest) -> (parseId id :: listSExpr, rest))
                         
                         Tokenizer.String str :: restTokens ->
                             parseTail restTokens
-                            |> Maybe.map (\(listSExpr, rest) -> (String (String.fromList str) :: listSExpr, rest))
+                            |> Result.map (\(listSExpr, rest) -> (String (String.fromList str) :: listSExpr, rest))
                         
                         Tokenizer.LPar :: restTokens ->
                             parseTail restTokens
-                            |> Maybe.andThen (\(headListSExpr, nextTokens) -> 
+                            |> Result.andThen (\(headListSExpr, nextTokens) -> 
                                 parseTail nextTokens 
-                                 |> Maybe.map (\(listSExpr, leftoverTokens) -> 
+                                 |> Result.map (\(listSExpr, leftoverTokens) -> 
                                     (Scope headListSExpr :: listSExpr, leftoverTokens)))
             in
             case parseTail tail of
-                Just (listSExpr, []) -> Just <| Scope listSExpr
-                _ -> Nothing
+                Ok (listSExpr, []) -> Ok <| Scope listSExpr
+                Ok (_, _) -> Err "Trailing tokens after last parenthesis"
+                Err e -> Err e
         
         Tokenizer.Id id :: [] -> 
-            Just <| parseId id
+            Ok <| parseId id
             
         Tokenizer.String str :: [] ->
-            Just <| String <| String.fromList str
+            Ok <| String <| String.fromList str
         
         _ -> 
-            Nothing
+            Err "Illegal sequence of tokens."

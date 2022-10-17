@@ -16,13 +16,13 @@ suite =
                 \_ ->
                     [Instr "block", Var ""]
                     |> Instruction.parseFolded
-                    |> Expect.equal (Just (FBlock {label = "", body = []}))
+                    |> Expect.equal (Ok <| FBlock {label = "", body = []})
             
             , test "empty if" <|
                 \_ ->
-                    [Instr "if", Var "", Scope [Instr "then"], Scope [Instr "else"]]
+                    [Instr "if", Var "label", Scope [Instr "then"], Scope [Instr "else"]]
                     |> Instruction.parseFolded
-                    |> Expect.equal (Just (FIf {label = "", folded = [], thenBlock = [], elseBlock = []}))
+                    |> Expect.equal (Ok <| FIf {label = Just "label", folded = [], thenBlock = [], elseBlock = []})
             ]
          
         , describe "parseSingle" <|
@@ -30,27 +30,34 @@ suite =
                 \_ ->
                 Instr "i32.add" :: []
                 |> Instruction.parseSingle
-                |> Expect.equal (Just (I32Add, []))
+                |> Expect.equal (Ok (I32Add, []))
                 
             , test "local.get" <|
                 \_ ->
                     Instr "local.get" :: Var "" :: []
                     |> Instruction.parseSingle
-                    |> Expect.equal (Just (LocalGet "", []))
+                    |> Expect.equal (Ok (LocalGet "", []))
             -- most of the rest are trivial, not worth testing every one
                     
             , test "empty unfolded block" <|
                 \_ ->
                     [Instr "block", Var "", Instr "end"]
                     |> Instruction.parseSingle
-                    |> Expect.equal (Just (Block {label = "", body = []}, []))
+                    |> Expect.equal (Ok (Block {label = "", body = []}, []))
                         
             
-            , test "empty unfolded if" <|
+            , test "empty unfolded if with label" <|
                 \_ ->
-                   [Instr "if", Var "", Instr "else", Instr "end"]
+                   [Instr "if", Var "label", Instr "else", Instr "end"]
                    |> Instruction.parseSingle
-                   |> Expect.equal (Just (If {label = "", thenBlock = [], elseBlock = []}, []))
+                   |> Expect.equal (Ok (If {label = Just "label", thenBlock = [], elseBlock = []}, []))
+            , test "empty unfolded if without label" <|
+                \_ ->
+                    [Instr "if", Instr "else", Instr "end"]
+                    |> Instruction.parseSingle
+                    |> Expect.equal (Ok (If {label = Nothing, thenBlock = [], elseBlock = []}, []))
+                   
+           
             ]
          
         , describe "foldedToString" <|
@@ -60,12 +67,23 @@ suite =
                     |> Instruction.foldedToString
                     |> Expect.equal "(i32.add (local.get $0) (local.get $1))"
             
-            , test "if" <|
+            , test "if with label" <|
                 \_ -> 
-                    FIf {label = "label", folded = [], thenBlock = [], elseBlock = []}
+                    FIf {label = Just "label", folded = [], thenBlock = [], elseBlock = []}
                     |> Instruction.foldedToString
                     |> Expect.equal (
                         "(if $label"
+                        ++ Format.newLineTab ++ "(then"
+                        ++ Format.newLineTab ++ ")"
+                        ++ Format.newLineTab ++ "(else"
+                        ++ Format.newLineTab ++ ")\n)"
+                    )
+            , test "if without label" <|
+                \_ ->
+                    FIf {label = Nothing, folded = [], thenBlock = [], elseBlock = []}
+                    |> Instruction.foldedToString
+                    |> Expect.equal (
+                        "(if"
                         ++ Format.newLineTab ++ "(then"
                         ++ Format.newLineTab ++ ")"
                         ++ Format.newLineTab ++ "(else"
@@ -86,7 +104,7 @@ suite =
             , test "if" <|
                 -- todo : change the unfolded version
                 \_ ->
-                    If {label = "name", thenBlock = [I32Add], elseBlock = [I32Sub]}
+                    If {label = Just "name", thenBlock = [I32Add], elseBlock = [I32Sub]}
                     |> Instruction.toString
                     |> Expect.equal (
                     "if $name" 
@@ -101,11 +119,11 @@ suite =
                 \(local1, local2) ->
                 [Instr "local.get", Var local1, Instr "local.get", Var local2]
                 |> Instruction.parse
-                |> Expect.equal (Just [LocalGet local1, LocalGet local2])
+                |> Expect.equal (Ok [LocalGet local1, LocalGet local2])
                 
             , test "exact failure case of test" <|
                 \_ -> [Instr "local.get", Var "0", Instr "local.get", Var "1", Instr "i32.add"]
                 |> Instruction.parse
-                |> Expect.equal (Just [LocalGet "0", LocalGet "1", I32Add])
+                |> Expect.equal (Ok [LocalGet "0", LocalGet "1", I32Add])
             ]
         ]

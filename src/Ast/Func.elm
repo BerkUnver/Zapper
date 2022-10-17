@@ -93,7 +93,7 @@ parseLocals : List Lexer.Token -> (List Local, List Lexer.Token)
 parseLocals func = List.mapUntilNothing parseLocal func
 
 
-parse : List Lexer.Token -> Maybe Func
+parse : List Lexer.Token -> Result String Func
 parse func = 
     case func of
         Lexer.Func :: Var name :: paramsResultsLocalsBody ->
@@ -103,11 +103,11 @@ parse func =
                 (locals, body) = parseLocals localsBody
             in
             Instruction.parse body
-            |> Maybe.map (\parsedBody ->
+            |> Result.map (\parsedBody ->
             { name = name
             , params = params
             , results = results
             , locals = locals
             , body = parsedBody
             })
-        _ -> Nothing
+        _ -> Err "Not a function."

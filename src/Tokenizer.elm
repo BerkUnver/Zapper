@@ -15,22 +15,22 @@ isWhitespace char =
     |> List.member char    
 
 
-tokenizeString : List Char -> Maybe (List Char, List Char)
+tokenizeString : List Char -> Result String (List Char, List Char)
 tokenizeString chars =
     let 
         appendStr char tail = 
             tokenizeString tail
-            |> Maybe.map (\(str, next) -> (char :: str, next))
+            |> Result.map (\(str, next) -> (char :: str, next))
     in
     case chars of
         [] -> 
-            Nothing
+            Err "Unclosed string."
         '"' :: tail -> 
-            Just ([], tail)
+            Ok ([], tail)
         '\\' :: tail -> 
             case tail of
                 [] -> 
-                    Nothing
+                    Err "Unclosed string ending with illegal escape sequence."
                 specifier :: rest ->
                     let mapRest char = appendStr char rest in
                     case specifier of
@@ -41,41 +41,50 @@ tokenizeString chars =
                         '\''  -> mapRest '\''
                         '\\' -> mapRest '\\'
                         -- todo : implement unicode format specifiers and hex literals in strings
-                        _ -> Nothing
+                        _ -> Err "Illegal escape sequence in string."
         char :: tail ->
-            appendStr char tail
+            appendStr char tail      
 
 
-tokenize : List Char -> Maybe (List Token)
+tokenize : List Char -> Result String (List Token)
 tokenize chars = 
-    case chars of
-        [] ->
-            Just []
-            
+    let concatToken rest token = tokenize rest |> Result.map (\tokens -> token :: tokens) in
+    case chars of 
+        [] -> Ok []
+        
+        '(' :: tail ->
+            concatToken tail LPar
+        
+        ')' :: tail  -> 
+            concatToken tail RPar
+        
+        '"' :: tail ->
+            -- todo : add error message for strings that end and don't have whitespace/parenthesis after
+            tokenizeString tail
+            |> Result.andThen (\(str, rest) -> String str |> concatToken rest)
+        
+        ';' :: ';' :: tail ->
+            let 
+                discardComment str = 
+                    case str of 
+                        [] -> []
+                        '\n' :: rest -> rest
+                        _ :: rest -> discardComment rest
+            in
+            discardComment tail
+            |> tokenize
+                
         head :: tail ->
-            let concatToken rest token = tokenize rest |> Maybe.map (\tokens -> token :: tokens) in
-            case head of
-                '(' -> 
-                    concatToken tail LPar
-                ')' ->
-                    concatToken tail RPar
-                '"' -> 
-                    -- todo : add error message for strings that end and don't have whitespace/parenthesis after
-                    tokenizeString tail
-                    |> Maybe.andThen (\(str, rest) -> 
-                        String str
-                        |> concatToken rest)
-                _ ->
-                    -- todo : Check for non-7-bit ASCII characters and give error
-                    -- todo : Check for line comments
-                    -- todo : Check for block comments
-                    if isWhitespace head then
-                        tokenize tail
-                    else
-                        let 
-                            (datum, rest) = 
-                                List.splitFirstTrue (\c -> c == '(' || c == ')' || isWhitespace c ) tail
-                        in
-                        head :: datum
-                        |> Id
-                        |> concatToken rest
+            -- todo : Check for non-7-bit ASCII characters and give error
+            -- todo : Check for line comments
+            -- todo : Check for block comments
+            if isWhitespace head then
+                tokenize tail
+            else
+                let 
+                    (datum, rest) =  List.splitFirstTrue (\c -> c == '(' || c == ')' || isWhitespace c) tail -- this is weird, can be made more concise.
+                in
+                head :: datum
+                |> Id
+                |> concatToken rest
+    

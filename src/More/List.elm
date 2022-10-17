@@ -1,5 +1,6 @@
 module More.List exposing (..)
 
+
 splitFirstTrue predicate list =
     case list of
         [] ->
@@ -12,6 +13,7 @@ splitFirstTrue predicate list =
                     (left, right) = splitFirstTrue predicate tail
                 in
                     (head :: left, right)
+
 
 firstTrue predicate list = 
     case list of 
@@ -36,8 +38,6 @@ mapUntilNothing predicate list =
                         (element :: left, right)
                         
                     
-    
-
 count predicate list = 
     case list of 
         [] -> 0
@@ -67,14 +67,25 @@ firstJust func list =
             case func head of 
                 Nothing -> firstJust func tail
                 result -> result
-                
-tryAll func list =
+
+             
+allJust func list =
     case list of
         head :: tail ->
             func head 
             |> Maybe.andThen (\result -> 
-                tryAll func tail 
+                allJust func tail 
                 |> Maybe.map (\rest -> result :: rest))
         
         [] -> Just []
         
+
+allOk func list = 
+    case list of
+        head :: tail ->
+            func head
+            |> Result.andThen (\result -> 
+                allOk func tail 
+                |> Result.map (\rest -> result :: rest))
+        
+        [] -> Ok []
