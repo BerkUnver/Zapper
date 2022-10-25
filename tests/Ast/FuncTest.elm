@@ -2,35 +2,35 @@ module Ast.FuncTest exposing (..)
 
 import Ast.Func as Func
 import Expect
-import Fuzz exposing (list)
+import Fuzz exposing (Fuzzer, list)
 import Lexer exposing (Token(..))
-import NumTypeTest
+import ValTypeFuzz
 import Test exposing (Test, describe, fuzz, test)
 
 
-validParam numType name = 
-    Scope [Param, Var name, NumType numType]
+validParam valType name = 
+    Scope [Param, Var name, ValType valType]
 
 
-nameTypeFuzz = 
-    Fuzz.tuple (Fuzz.string, NumTypeTest.numTypeFuzz)
+labelTypeFuzz = 
+    Fuzz.tuple (Fuzz.string, ValTypeFuzz.valTypeFuzz)
 
 
 paramFuzz = 
-    nameTypeFuzz
-    |> Fuzz.map (\(name, t) -> {name = name, dataType = t})
+    labelTypeFuzz
+    |> Fuzz.map (\(label, t) -> {label = label, dataType = t})
 
 
-resultFuzz = NumTypeTest.numTypeFuzz
+resultFuzz = ValTypeFuzz.valTypeFuzz
 
 
 localFuzz = 
-    nameTypeFuzz
-    |> Fuzz.map (\(name, t) -> {name = name, dataType = t})
+    labelTypeFuzz
+    |> Fuzz.map (\(label, t) -> {label = label, dataType = t})
     
 
 funcDeclarationFuzz = 
-    ((\name params results locals -> {name = name, params = params, results = results, locals = locals, body = []})
+    ((\label params results locals -> {label = label, params = params, results = results, locals = locals, body = []})
     |> Fuzz.map4) Fuzz.string (list paramFuzz) (list resultFuzz) (list localFuzz)
 
 
@@ -40,7 +40,7 @@ suite =
         [ describe "parseParam" <|
             [ fuzz paramFuzz "general-purpose test-case" <|
                 \param ->
-                Scope [Param, Var param.name, NumType param.dataType]
+                Scope [Param, Var param.label, ValType param.dataType]
                 |> Func.parseParam
                 |> Expect.equal (Just param)
             ]
@@ -49,7 +49,7 @@ suite =
             [ fuzz (list paramFuzz) "general test case" <|
                 \params ->
                 params 
-                |> List.foldr (\param into -> Scope [Param, Var param.name, NumType param.dataType] :: into) []
+                |> List.foldr (\param into -> Scope [Param, Var param.label, ValType param.dataType] :: into) []
                 |> Func.parseParams
                 |> Expect.equal (params, [])
             ]
@@ -57,7 +57,7 @@ suite =
         , describe "parseResult" <|
             [ fuzz resultFuzz "general-purpose test case" <|
                 \t ->
-                Scope [Result, NumType t]
+                Scope [Result, ValType t]
                 |> Func.parseResult
                 |> Expect.equal (Just t)
             ]
@@ -66,7 +66,7 @@ suite =
             [ fuzz (list resultFuzz) "general test case" <|
                 \results ->
                 results 
-                |> List.foldr (\t into -> Scope [Result, NumType t] :: into) []
+                |> List.foldr (\t into -> Scope [Result, ValType t] :: into) []
                 |> Func.parseResults
                 |> Expect.equal (results, [])
             ]
@@ -74,7 +74,7 @@ suite =
         , describe "parseLocal" <|
             [ fuzz localFuzz "general test case" <|
                 \local ->
-                Scope [Local, Var local.name, NumType local.dataType]
+                Scope [Local, Var local.label, ValType local.dataType]
                 |> Func.parseLocal
                 |> Expect.equal (Just local)
             ]
@@ -83,7 +83,7 @@ suite =
             [ fuzz (list localFuzz) "general" <|
                 \locals ->
                 locals 
-                |> List.foldr (\local into -> Scope [Local, Var local.name, NumType local.dataType] :: into) []
+                |> List.foldr (\local into -> Scope [Local, Var local.label, ValType local.dataType] :: into) []
                 |> Func.parseLocals 
                 |> Expect.equal (locals, [])
             ]
@@ -91,10 +91,10 @@ suite =
         , describe "parse" <|
             [ fuzz funcDeclarationFuzz "empty body, fuzzed declaration." <|
                 \func ->
-                List.foldr (\local list -> Scope [Local, Var local.name, NumType local.dataType] :: list) [] func.locals
-                |> (\tail -> List.foldr (\result list -> Scope [Result, NumType result] :: list) tail func.results)
-                |> (\tail -> List.foldr (\param list -> Scope [Param, Var param.name, NumType param.dataType] :: list) tail func.params)
-                |> (\tail -> Func :: Var func.name :: tail)
+                List.foldr (\local list -> Scope [Local, Var local.label, ValType local.dataType] :: list) [] func.locals
+                |> (\tail -> List.foldr (\result list -> Scope [Result, ValType result] :: list) tail func.results)
+                |> (\tail -> List.foldr (\param list -> Scope [Param, Var param.label, ValType param.dataType] :: list) tail func.params)
+                |> (\tail -> Func :: Var func.label :: tail)
                 |> Func.parse
                 |> Expect.equal (Ok func)
             ]

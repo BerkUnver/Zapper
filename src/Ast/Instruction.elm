@@ -6,7 +6,6 @@ import Lexer exposing (Token(..))
 import More.List as List
 import More.String as String
 
-
 type FoldedInstr
     = FInstr (Instruction, List FoldedInstr)
     | FIf {label : Maybe String, folded : List FoldedInstr,  thenBlock : List Instruction, elseBlock : List Instruction}
@@ -51,7 +50,7 @@ type Instruction
     | I32Sub | I64Sub 
     | I32Mul | I64Mul 
     | I32And | I64And 
-    | I32Or  | I64Or 
+    | I32Or | I64Or 
     | I32Xor | I64Xor
     
     | F32Add | F64Add

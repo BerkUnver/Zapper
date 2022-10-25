@@ -1,7 +1,7 @@
-module NumType exposing (..)
+module ValType exposing (..)
 
 
-type NumType
+type ValType
     = I32
     | I64
     | F32

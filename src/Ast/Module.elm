@@ -10,7 +10,7 @@ import Tokenizer
 
 type alias Ast = 
     { functions : List Func }
-    -- todo : add export, import, type alias
+    -- todo : add export, import, type-use
 
 
 toString ast = 

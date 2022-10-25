@@ -1,7 +1,7 @@
 module Lexer exposing (..)
 
 import More.List as List
-import NumType exposing (NumType)
+import ValType exposing (ValType)
 import Tokenizer
     
     
@@ -18,7 +18,7 @@ type Token
     | Result
     | Local
     -- todo : Export, import, type keywords
-    | NumType NumType
+    | ValType ValType
     | Instr String
     -- todo : add reserved identifiers
     
@@ -41,7 +41,7 @@ parseId id =
                 "local" -> Local
                 str ->
 
-                    [ NumType.fromString >> Maybe.map NumType
+                    [ ValType.fromString >> Maybe.map ValType
                     , String.toInt >> Maybe.map Int
                     , String.toFloat >> Maybe.map Float 
                     ]

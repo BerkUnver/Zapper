@@ -89,3 +89,31 @@ allOk func list =
                 |> Result.map (\rest -> result :: rest))
         
         [] -> Ok []
+        
+
+partialEq list1 list2 = 
+    case (list1, list2) of
+        (head1 :: tail1, head2 :: tail2) ->
+            if head1 == head2 then 
+                partialEq tail1 tail2 
+            else 
+                False
+        _ -> True
+        
+        
+popAllEq list1 list2 = 
+    let pair = (list1, list2) in
+    case pair of
+        (head1 :: tail1, head2 :: tail2) ->
+            if head1 == head2 then
+                popAllEq tail1 tail2
+            else
+                pair
+        _ -> pair
+
+
+headAndTail list = 
+    case list of 
+        head :: tail ->
+            Just (head, tail)
+        [] -> Nothing

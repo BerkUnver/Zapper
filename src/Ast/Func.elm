@@ -4,7 +4,7 @@ import Ast.Instruction as Instruction exposing (Instruction)
 import Format
 import Lexer exposing (Token(..))
 import More.String as String
-import NumType exposing (NumType)
+import ValType exposing (ValType)
 import More.List as List
  
 
@@ -12,44 +12,44 @@ import More.List as List
 -- todo : Add type aliases in function name
 
 type alias Param =
-    { name : String
-    , dataType : NumType
+    { label : String
+    , dataType : ValType
     }
 
 
 paramToString : Param -> String
 paramToString param = 
-    "(param $" ++ param.name ++ " " ++ NumType.toString param.dataType ++ ")"
+    "(param $" ++ param.label ++ " " ++ ValType.toString param.dataType ++ ")"
     
     
 type alias Local = 
-    { name : String
-    , dataType : NumType
+    { label : String
+    , dataType : ValType
     }
     
     
 localToString : Local -> String
 localToString local =
-    "(local $" ++ local.name ++ " " ++ NumType.toString local.dataType ++ ")"
+    "(local $" ++ local.label ++ " " ++ ValType.toString local.dataType ++ ")"
     
 
 type alias Func = 
-    { name : String
+    { label : String
     , params : List Param
-    , results : List NumType
+    , result : List ValType
     , locals : List Local
     , body : List Instruction
     }
 
 
-resultToString : NumType -> String
-resultToString numType = 
-    "(result " ++ NumType.toString numType ++ ")" 
+resultToString : ValType -> String
+resultToString valType = 
+    "(result " ++ ValType.toString valType ++ ")" 
 
 
 toString : Func -> String
 toString func = 
-    "(func $" ++ func.name 
+    "(func $" ++ func.label 
     ++ String.joinWithFirst " " (List.map paramToString func.params)
     ++ String.joinWithFirst " " (List.map resultToString func.results)
     ++ String.joinWithFirst Format.newLineTab (List.map localToString func.locals)
@@ -60,8 +60,8 @@ toString func =
 parseParam : Lexer.Token -> Maybe Param
 parseParam param =
     case param of
-        Scope [Lexer.Param, Var name, NumType t] -> 
-            Just { name = name, dataType = t }
+        Scope [Lexer.Param, Var name, ValType t] -> 
+            Just { label = name, dataType = t }
         _ -> Nothing
         
 
@@ -69,23 +69,23 @@ parseParams : List Lexer.Token -> (List Param, List Lexer.Token)
 parseParams funcSExpr = List.mapUntilNothing parseParam funcSExpr 
         
         
-parseResult : Lexer.Token -> Maybe NumType
+parseResult : Lexer.Token -> Maybe ValType
 parseResult result =
     case result of
-        Scope [Lexer.Result, Lexer.NumType t] -> 
+        Scope [Lexer.Result, Lexer.ValType t] -> 
             Just t
         _ -> Nothing
         
 
-parseResults : List Lexer.Token -> (List NumType, List Lexer.Token)
+parseResults : List Lexer.Token -> (List ValType, List Lexer.Token)
 parseResults funcSExpr = List.mapUntilNothing parseResult funcSExpr
 
 
 parseLocal : Lexer.Token -> Maybe Local
 parseLocal local = 
     case local of 
-        Scope [Lexer.Local, Var var, NumType t] ->
-            Just {name = var, dataType = t}
+        Scope [Lexer.Local, Var var, ValType t] ->
+            Just {label = var, dataType = t}
         _ -> Nothing
 
 
@@ -104,7 +104,7 @@ parse func =
             in
             Instruction.parse body
             |> Result.map (\parsedBody ->
-            { name = name
+            { label = name
             , params = params
             , results = results
             , locals = locals
