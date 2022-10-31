@@ -10,7 +10,7 @@ type Token
     | Int Int
     | Float Float
     | String String
-    | Var String
+    | Label String
     
     | Module
     | Func
@@ -30,7 +30,7 @@ parseId id =
     case id of
         '$' :: var -> 
             -- todo : Identify invalid characters in variable names
-            Var <| String.fromList var
+            Label <| String.fromList var
         
         keyword ->
             case String.fromList keyword of

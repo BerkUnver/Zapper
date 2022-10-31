@@ -7,7 +7,6 @@ import More.String as String
 import ValType exposing (ValType)
 import More.List as List
  
-
 -- todo : Add anonymous params, locals, and functions that can be accessed only by index.
 -- todo : Add type aliases in function name
 
@@ -34,9 +33,9 @@ localToString local =
     
 
 type alias Func = 
-    { label : String
+    { label : Maybe String
     , params : List Param
-    , result : List ValType
+    , result : Maybe ValType
     , locals : List Local
     , body : List Instruction
     }
@@ -48,10 +47,10 @@ resultToString valType =
 
 
 toString : Func -> String
-toString func = 
-    "(func $" ++ func.label 
+toString func =
+    "(func" ++ Instruction.labelStr func.label
     ++ String.joinWithFirst " " (List.map paramToString func.params)
-    ++ String.joinWithFirst " " (List.map resultToString func.results)
+    ++ (func.result |> Maybe.map (\x -> " " ++ resultToString x) |> Maybe.withDefault "")
     ++ String.joinWithFirst Format.newLineTab (List.map localToString func.locals)
     ++ (Format.indentBody <| String.joinWithFirst "\n" <| List.map Instruction.toString func.body)
     ++ "\n)"
@@ -60,7 +59,7 @@ toString func =
 parseParam : Lexer.Token -> Maybe Param
 parseParam param =
     case param of
-        Scope [Lexer.Param, Var name, ValType t] -> 
+        Scope [Lexer.Param, Label name, ValType t] -> 
             Just { label = name, dataType = t }
         _ -> Nothing
         
@@ -77,14 +76,10 @@ parseResult result =
         _ -> Nothing
         
 
-parseResults : List Lexer.Token -> (List ValType, List Lexer.Token)
-parseResults funcSExpr = List.mapUntilNothing parseResult funcSExpr
-
-
 parseLocal : Lexer.Token -> Maybe Local
 parseLocal local = 
     case local of 
-        Scope [Lexer.Local, Var var, ValType t] ->
+        Scope [Lexer.Local, Label var, ValType t] ->
             Just {label = var, dataType = t}
         _ -> Nothing
 
@@ -96,17 +91,18 @@ parseLocals func = List.mapUntilNothing parseLocal func
 parse : List Lexer.Token -> Result String Func
 parse func = 
     case func of
-        Lexer.Func :: Var name :: paramsResultsLocalsBody ->
+        Lexer.Func :: tail ->
             let
-                (params, resultsLocalsBody) = parseParams paramsResultsLocalsBody
-                (results, localsBody) = parseResults resultsLocalsBody
+                (label, paramsResultLocalsBody) = Instruction.parseLabel tail
+                (params, resultLocalsBody) = parseParams paramsResultLocalsBody
+                (result, localsBody) = Instruction.parseResult resultLocalsBody
                 (locals, body) = parseLocals localsBody
             in
             Instruction.parse body
             |> Result.map (\parsedBody ->
-            { label = name
+            { label = label
             , params = params
-            , results = results
+            , result = result
             , locals = locals
             , body = parsedBody
             })

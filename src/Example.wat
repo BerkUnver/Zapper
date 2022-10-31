@@ -41,7 +41,15 @@
     
     (func $loopTypeSignature (result i32)
         loop $loop (result i32)
-            i32.const 1
+            i32.const +1
         end
+    )
+    
+        
+    (func $foldedIf (result i32)
+        (if $if (i32.const 1 (i32.const 2))
+            (then)
+            (else)
+        )
     )
 )

@@ -117,3 +117,8 @@ headAndTail list =
         head :: tail ->
             Just (head, tail)
         [] -> Nothing
+        
+maybeCons maybe list = 
+    case maybe of
+        Just x -> x :: list
+        Nothing -> list
