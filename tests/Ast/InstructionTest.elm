@@ -3,9 +3,9 @@ module Ast.InstructionTest exposing (..)
 import Ast.Instruction as Instruction exposing (FoldedInstr(..), Instruction(..))
 import Expect
 import Format
-import Fuzz exposing (string, tuple)
+import Fuzz exposing (string)
 import Lexer exposing (Token(..))
-import Test exposing (Test, describe, fuzz, test)
+import Test exposing (Test, describe, fuzz, fuzz2, test)
 
 
 suite : Test
@@ -115,8 +115,8 @@ suite =
             ]
             
         , describe "parse" <|
-            [ fuzz (tuple (string, string)) "multiple local.get" <|
-                \(local1, local2) ->
+            [ fuzz2 string string "multiple local.get" <|
+                \local1 local2 ->
                 [Instr "local.get", Label local1, Instr "local.get", Label local2]
                 |> Instruction.parse
                 |> Expect.equal (Ok [LocalGet local1, LocalGet local2])

@@ -2,18 +2,18 @@ module Ast.FuncTest exposing (..)
 
 import Ast.Func as Func exposing (Func)
 import Expect
-import Fuzz exposing (Fuzzer, list, maybe, string)
+import Fuzz exposing (Fuzzer, list, maybe, pair, string)
 import Lexer exposing (Token(..))
-import ValTypeFuzz
-import Test exposing (Test, describe, fuzz, test)
+import ValTypeFuzz exposing (valType)
+import Test exposing (Test, describe, fuzz)
 
 
 validParam valType name = 
     Scope [Param, Label name, ValType valType]
 
 
-labelTypeFuzz = 
-    Fuzz.tuple (Fuzz.string, ValTypeFuzz.valTypeFuzz)
+labelTypeFuzz = pair string valType
+
 
 
 paramFuzz = 
@@ -21,7 +21,7 @@ paramFuzz =
     |> Fuzz.map (\(label, t) -> {label = label, dataType = t})
 
 
-resultFuzz = ValTypeFuzz.valTypeFuzz
+resultFuzz = ValTypeFuzz.valType
 
 
 localFuzz = 

@@ -8,7 +8,7 @@ import Test exposing (Test, describe, fuzz, test)
 suite : Test
 suite = 
     describe "List" 
-        [ describe "tryAll"
+        [ describe "allJust"
             [ test "Empty list" <|
                 \_ -> 
                     List.allJust (\_ -> Just ()) []
@@ -21,7 +21,7 @@ suite =
                         Expect.equal Nothing result
                     else
                         Maybe.isJust result
-                        |> Expect.true "Result has elements."
+                        |> Expect.equal True
             
             , test "Applies in the correct order" <|
                 \_ ->

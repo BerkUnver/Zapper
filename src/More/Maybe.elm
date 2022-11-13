@@ -8,3 +8,5 @@ isJust maybe =
 andThenCons element maybeList =
     maybeList
     |> Maybe.map (\elements -> element :: elements)
+    
+

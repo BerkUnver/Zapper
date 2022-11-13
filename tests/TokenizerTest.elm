@@ -1,7 +1,7 @@
 module TokenizerTest exposing (suite)
 
 import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer, tuple, char, list)
+import Fuzz exposing (Fuzzer, char, list)
 import More.Result as Result
 import Test exposing (..)
 import Tokenizer exposing (Token(..))
@@ -33,15 +33,15 @@ suite =
                     Tokenizer.tokenizeString ['"']
                     |> Expect.equal (Ok ([], []))
                     
-            , fuzz (tuple (list char, escapeCharFuzz)) "Legal string" <|
-                \(chars, escapeChar) -> 
+            , fuzz2 (list char) escapeCharFuzz "Legal string" <|
+                \chars escapeChar -> 
                     legalizeChars escapeChar chars
                     |> Tokenizer.tokenizeString
                     |> Result.isOk
-                    |> Expect.true "Expected the string tokenizer to succeed."
+                    |> Expect.equal True
                 
-            , fuzz (tuple (list char, escapeCharFuzz)) "Non-terminated string" <|
-                \(chars, escapeChar) ->
+            , fuzz2 (list char) escapeCharFuzz "Non-terminated string" <|
+                \chars escapeChar ->
                     List.foldr (
                         \char charList ->
                         case char of 
@@ -51,7 +51,7 @@ suite =
                     ) [] chars
                     |> Tokenizer.tokenizeString
                     |> Result.isOk >> not
-                    |> Expect.true "Fails when string is not terminated with brackets"
+                    |> Expect.equal True
             ]
             
         , describe "tokenize"

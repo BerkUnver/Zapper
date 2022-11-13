@@ -117,8 +117,56 @@ headAndTail list =
         head :: tail ->
             Just (head, tail)
         [] -> Nothing
-        
+
+
 maybeCons maybe list = 
     case maybe of
         Just x -> x :: list
         Nothing -> list
+        
+        
+fromMaybe maybe = 
+    case maybe of 
+        Just x -> [x]
+        Nothing -> []
+        
+        
+foldLeftUntilErr : (a -> seed -> Result err seed) -> List a -> seed -> Result err seed
+foldLeftUntilErr func list seed =
+   case list of 
+       head :: tail ->
+           func head seed
+           |> Result.andThen (foldLeftUntilErr func tail)
+           
+       [] -> 
+           Ok seed
+
+foldLeftUntilNothing : (a -> seed -> Maybe seed) -> List a -> seed -> Maybe seed
+foldLeftUntilNothing func list seed =
+   case list of 
+       head :: tail ->
+           func head seed
+           |> Maybe.andThen (foldLeftUntilNothing func tail)
+           
+       [] -> 
+           Just seed
+
+
+first predicate list =
+    case list of 
+        head :: tail ->
+            if predicate head then 
+                Just head 
+            else
+                first predicate tail
+        
+        [] -> 
+            Nothing
+
+
+appendReverse front back = 
+    case front of 
+        head :: tail ->
+            head :: back
+            |> appendReverse tail 
+        [] -> back

@@ -205,7 +205,7 @@ toString instr =
              
         _ ->
             singleNumericOps
-            |> List.firstJust (\(str, op) -> if op == instr then Just str else Nothing)
+            |> List.firstJust (\(str, op) -> if op == instr then Just str else Nothing) -- todo : More efficient lookup
             |> Maybe.withDefault "unknown_instruction"
         
             

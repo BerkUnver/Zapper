@@ -46,10 +46,13 @@
     )
     
         
-    (func $foldedIf (result i32)
-        (if $if (i32.const 1 (i32.const 2))
-            (then)
-            (else)
-        )
+    (func $blockNameShadow
+        block $a
+            block $b
+                block $a
+                    br $a
+                end
+            end
+        end        
     )
 )
