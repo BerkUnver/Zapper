@@ -1,11 +1,8 @@
 module Ast.Func exposing (..)
 
 import Ast.Instruction as Instruction exposing (Instruction)
-import Dict exposing (Dict)
 import Format
 import Lexer exposing (Token(..))
-import More.Dict as Dict
-import More.Maybe as Maybe
 import More.String as String
 import ValType exposing (ValType)
 import More.List as List
@@ -13,21 +10,33 @@ import More.List as List
 -- todo : Add anonymous params, locals, and functions that can be accessed only by index.
 -- todo : Add type aliases in function name
 
+type alias Param =
+    { label : String
+    , dataType : ValType
+    }
 
-paramToString : String -> ValType -> String
-paramToString label t = 
-    "(param $" ++ label ++ " " ++ ValType.toString t ++ ")"
+
+paramToString : Param -> String
+paramToString param = 
+    "(param $" ++ param.label ++ " " ++ ValType.toString param.dataType ++ ")"
     
     
-localToString : (String, ValType) -> String
-localToString (label, t) =
-    "(local $" ++ label ++ " " ++ ValType.toString t ++ ")"
+type alias Local = 
+    { label : String
+    , dataType : ValType
+    }
+    
+    
+localToString : Local -> String
+localToString local =
+    "(local $" ++ local.label ++ " " ++ ValType.toString local.dataType ++ ")"
     
 
 type alias Func = 
-    { params : List String
+    { label : Maybe String
+    , params : List Param
     , result : Maybe ValType
-    , locals : Dict String ValType
+    , locals : List Local
     , body : List Instruction
     }
 
@@ -39,21 +48,23 @@ resultToString valType =
 
 toString : Func -> String
 toString func =
-    String.join " " (List.map (\p -> func.locals |> Dict.get p |> Maybe.unwrap |> paramToString p) func.params) 
-    ++ (func.result |> Maybe.mapWithDefault "" (\x -> " " ++ resultToString x))
-    ++ String.joinWithFirst Format.newLineTab (func.locals |> Dict.toList |> List.map localToString)
+    "(func" ++ Instruction.labelStr func.label
+    ++ String.joinWithFirst " " (List.map paramToString func.params)
+    ++ (func.result |> Maybe.map (\x -> " " ++ resultToString x) |> Maybe.withDefault "")
+    ++ String.joinWithFirst Format.newLineTab (List.map localToString func.locals)
     ++ (Format.indentBody <| String.joinWithFirst "\n" <| List.map Instruction.toString func.body)
-
+    ++ "\n)"
             
-parseParam : Lexer.Token -> Maybe (String, ValType)
+            
+parseParam : Lexer.Token -> Maybe Param
 parseParam param =
     case param of
         Scope [Lexer.Param, Label name, ValType t] -> 
-            Just (name, t)
+            Just { label = name, dataType = t }
         _ -> Nothing
         
 
-parseParams : List Lexer.Token -> (List (String, ValType), List Lexer.Token)
+parseParams : List Lexer.Token -> (List Param, List Lexer.Token)
 parseParams funcSExpr = List.mapUntilNothing parseParam funcSExpr 
         
         
@@ -65,36 +76,34 @@ parseResult result =
         _ -> Nothing
         
 
-parseLocal : Lexer.Token -> Maybe (String, ValType)
+parseLocal : Lexer.Token -> Maybe Local
 parseLocal local = 
     case local of 
         Scope [Lexer.Local, Label var, ValType t] ->
-            Just (var, t)
+            Just {label = var, dataType = t}
         _ -> Nothing
 
 
-parseLocals : List Lexer.Token -> (List (String, ValType), List Lexer.Token)
+parseLocals : List Lexer.Token -> (List Local, List Lexer.Token)
 parseLocals func = List.mapUntilNothing parseLocal func
 
 
 parse : List Lexer.Token -> Result String Func
 parse func = 
-    let
-        (params, resultLocalsBody) = parseParams func
-        (result, localsBody) = Instruction.parseResult resultLocalsBody
-        (locals, body) = parseLocals localsBody
-    in
-    Instruction.parse body
-    |> Result.andThen (\parsedBody -> 
-        Dict.empty
-        |> Dict.insertManyNew params
-        |> Maybe.andThen (Dict.insertManyNew locals)
-        |> Result.fromMaybe "Duplicate local / param declaration."
-        |> Result.map (\localVars ->
-            { params = List.map Tuple.first params
+    case func of
+        Lexer.Func :: tail ->
+            let
+                (label, paramsResultLocalsBody) = Instruction.parseLabel tail
+                (params, resultLocalsBody) = parseParams paramsResultLocalsBody
+                (result, localsBody) = Instruction.parseResult resultLocalsBody
+                (locals, body) = parseLocals localsBody
+            in
+            Instruction.parse body
+            |> Result.map (\parsedBody ->
+            { label = label
+            , params = params
             , result = result
-            , locals = localVars
+            , locals = locals
             , body = parsedBody
-            }
-        )
-    )
+            })
+        _ -> Err "Not a function."
