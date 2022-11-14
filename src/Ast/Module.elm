@@ -8,7 +8,6 @@ import More.List as List
 import Tokenizer
 
     
-
 type alias Ast = 
     { functions : Dict String Func }
     -- todo : add export, import, type-use
@@ -18,7 +17,7 @@ toString : Ast -> String
 toString ast = 
     ast.functions
     |> Dict.toList
-    |> List.map (\(_, func) -> Func.toString func |> Format.indent)
+    |> List.map (\(label, func) -> Format.indent ("(func $" ++ label ++ " " ++ Func.toString func ++ "\n)")) -- todo : Don't put a space if there are no params or results.
     |> String.join "\n\n"
     |> \x -> "(module\n" ++ x ++ "\n)"
     
@@ -26,18 +25,17 @@ toString ast =
 insertFunc : Token -> Ast -> Result String Ast
 insertFunc token ast =
     case token of
-        Scope func ->   -- todo : add import, export, type alias
+        -- todo : add import, export, type alias, 
+        Scope (Lexer.Func :: Label label :: func) ->
             Func.parse func
             |> Result.andThen (\parsedFunc ->
-                case parsedFunc.label of
-                    Just label ->
-                        if Dict.get label ast.functions == Nothing then 
-                            Ok {ast | functions = Dict.insert label parsedFunc ast.functions}
-                        else
-                            Err <| "Duplicate function declaration: $" ++ label
-                    Nothing -> Ok ast
+                if Dict.get label ast.functions == Nothing then 
+                    Ok {ast | functions = Dict.insert label parsedFunc ast.functions}
+                else
+                    Err <| "Duplicate function declaration: $" ++ label
             )
-            
+        Scope (Lexer.Func :: _) ->
+            Err "Anonymous functions are currently not supported."    -- todo : anonymous functions
         _ -> 
             Err <| Debug.toString token ++ " is not a valid module-level declaration."
             
