@@ -1,30 +1,22 @@
 module Ast.Func exposing (..)
 
 import Ast.Instruction as Instruction exposing (Instruction)
-import Format
 import Lexer exposing (Token(..))
-import More.String as String
 import ValType exposing (ValType)
 import More.List as List
  
 -- todo : Add anonymous params, locals, and functions that can be accessed only by index.
 -- todo : Add type aliases in function name
 
-type alias Param =
-    { label : String
-    , dataType : ValType
-    }
-
-
-paramToString : Param -> String
-paramToString param = 
-    "(param $" ++ param.label ++ " " ++ ValType.toString param.dataType ++ ")"
-    
-    
 type alias Local = 
     { label : String
     , dataType : ValType
     }
+    
+
+paramToString : Local -> String
+paramToString param = 
+    "(param $" ++ param.label ++ " " ++ ValType.toString param.dataType ++ ")"
     
     
 localToString : Local -> String
@@ -32,31 +24,12 @@ localToString local =
     "(local $" ++ local.label ++ " " ++ ValType.toString local.dataType ++ ")"
     
 
-type alias Func = 
-    { label : Maybe String
-    , params : List Param
-    , result : Maybe ValType
-    , locals : List Local
-    , body : List Instruction
-    }
-
-
 resultToString : ValType -> String
 resultToString valType = 
-    "(result " ++ ValType.toString valType ++ ")" 
-
-
-toString : Func -> String
-toString func =
-    "(func" ++ Instruction.labelStr func.label
-    ++ String.joinWithFirst " " (List.map paramToString func.params)
-    ++ (func.result |> Maybe.map (\x -> " " ++ resultToString x) |> Maybe.withDefault "")
-    ++ String.joinWithFirst Format.newLineTab (List.map localToString func.locals)
-    ++ (Format.indentBody <| String.joinWithFirst "\n" <| List.map Instruction.toString func.body)
-    ++ "\n)"
+    "(result " ++ ValType.toString valType ++ ")"
             
             
-parseParam : Lexer.Token -> Maybe Param
+parseParam : Lexer.Token -> Maybe Local
 parseParam param =
     case param of
         Scope [Lexer.Param, Label name, ValType t] -> 
@@ -64,7 +37,7 @@ parseParam param =
         _ -> Nothing
         
 
-parseParams : List Lexer.Token -> (List Param, List Lexer.Token)
+parseParams : List Lexer.Token -> (List Local, List Lexer.Token)
 parseParams funcSExpr = List.mapUntilNothing parseParam funcSExpr 
         
         
@@ -88,22 +61,25 @@ parseLocals : List Lexer.Token -> (List Local, List Lexer.Token)
 parseLocals func = List.mapUntilNothing parseLocal func
 
 
+type alias Func = -- TODO : make it illegal to have duplicate names for things!
+    { params : List Local
+    , result : Maybe ValType
+    , locals : List Local
+    , body : List Instruction
+    }
+
+
 parse : List Lexer.Token -> Result String Func
 parse func = 
-    case func of
-        Lexer.Func :: tail ->
-            let
-                (label, paramsResultLocalsBody) = Instruction.parseLabel tail
-                (params, resultLocalsBody) = parseParams paramsResultLocalsBody
-                (result, localsBody) = Instruction.parseResult resultLocalsBody
-                (locals, body) = parseLocals localsBody
-            in
-            Instruction.parse body
-            |> Result.map (\parsedBody ->
-            { label = label
-            , params = params
-            , result = result
-            , locals = locals
-            , body = parsedBody
-            })
-        _ -> Err "Not a function."
+    let
+        (params, resultLocalsBody) = parseParams func
+        (result, localsBody) = Instruction.parseResult resultLocalsBody
+        (locals, body) = parseLocals localsBody
+    in
+    Instruction.parse body
+    |> Result.map (\parsedBody ->
+    { params = params
+    , result = result
+    , locals = locals
+    , body = parsedBody
+    })

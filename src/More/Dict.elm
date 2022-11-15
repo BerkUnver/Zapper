@@ -16,3 +16,17 @@ allUnique list =
                 else 
                     Nothing
             ) 
+            
+insertUnique key val dict = 
+    if Dict.member key dict then
+        Nothing
+    else
+        Just <| Dict.insert key val dict
+        
+insertManyUnique list dict = 
+    case list of 
+        (key, val) :: tail ->
+            insertUnique key val dict
+            |> Maybe.andThen (insertManyUnique tail)
+        [] ->
+            Just dict

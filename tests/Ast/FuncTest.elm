@@ -31,8 +31,8 @@ localFuzz =
 
 funcDeclarationFuzz : Fuzzer Func
 funcDeclarationFuzz = 
-    ((\label params result locals -> {label = label, params = params, result = result, locals = locals, body = []})
-    |> Fuzz.map4) (maybe string) (list paramFuzz) (maybe resultFuzz) (list localFuzz)
+    ((\params result locals -> {params = params, result = result, locals = locals, body = []})
+    |> Fuzz.map3) (list paramFuzz) (maybe resultFuzz) (list localFuzz)
 
 
 suite : Test
@@ -86,8 +86,6 @@ suite =
                 List.foldr (\local list -> Scope [Local, Label local.label, ValType local.dataType] :: list) [] func.locals -- append the locals
                 |> (\tail -> func.result |> Maybe.map (\t -> Scope [Result, ValType t] :: tail) |> Maybe.withDefault tail) -- append the result if it exists
                 |> (\tail -> List.foldr (\param list -> Scope [Param, Label param.label, ValType param.dataType] :: list) tail func.params) -- append the params
-                |> (\tail -> func.label |> Maybe.map (\l -> Label l :: tail) |> Maybe.withDefault tail) -- append label if it exists
-                |> (\tail -> Lexer.Func :: tail)
                 |> Func.parse
                 |> Expect.equal (Ok func)
             ]

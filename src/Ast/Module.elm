@@ -1,10 +1,13 @@
 module Ast.Module exposing (..)
 
 import Ast.Func as Func exposing (Func)
+import Ast.Instruction as Instruction
 import Dict exposing (Dict)
 import Format
 import Lexer exposing (Token(..))
 import More.List as List
+import More.Maybe as Maybe
+import More.String as String
 import Tokenizer
 
     
@@ -15,10 +18,20 @@ type alias Ast =
 
 
 toString : Ast -> String
-toString ast = 
+toString ast =
+    let 
+        funcToString label func = 
+            let params = List.map Func.paramToString func.params |> String.join " " in
+            "(func $" ++ label
+            ++ (if String.isEmpty params then "" else " " ++ params)
+            ++ (func.result |> Maybe.mapWithDefault "" (\x -> " " ++ Func.resultToString x))
+            ++ String.joinWithFirst Format.newLineTab (List.map Func.localToString func.locals)
+            ++ (Format.indentBody <| String.joinWithFirst "\n" <| List.map Instruction.toString func.body)
+            ++ "\n)"
+    in
     ast.functions
     |> Dict.toList
-    |> List.map (\(_, func) -> Func.toString func |> Format.indent)
+    |> List.map (\(label, func) -> funcToString label func |> Format.indent)
     |> String.join "\n\n"
     |> \x -> "(module\n" ++ x ++ "\n)"
     
@@ -26,16 +39,13 @@ toString ast =
 insertFunc : Token -> Ast -> Result String Ast
 insertFunc token ast =
     case token of
-        Scope func ->   -- todo : add import, export, type alias
-            Func.parse func
+        Scope (Lexer.Func :: Label label :: tail) ->   -- todo : add import, export, type alias
+            Func.parse tail
             |> Result.andThen (\parsedFunc ->
-                case parsedFunc.label of
-                    Just label ->
-                        if Dict.get label ast.functions == Nothing then 
-                            Ok {ast | functions = Dict.insert label parsedFunc ast.functions}
-                        else
-                            Err <| "Duplicate function declaration: $" ++ label
-                    Nothing -> Ok ast
+                if Dict.get label ast.functions == Nothing then 
+                    Ok {ast | functions = Dict.insert label parsedFunc ast.functions}
+                else
+                    Err <| "Duplicate function declaration: $" ++ label
             )
             
         _ -> 

@@ -10,3 +10,13 @@ andThenCons element maybeList =
     |> Maybe.map (\elements -> element :: elements)
     
 
+unwrap maybe =
+    case maybe of
+        Just x -> x
+        Nothing -> Debug.todo "failed to unwrap maybe."
+        
+
+mapWithDefault default func maybe =
+    case maybe of
+        Nothing -> default
+        Just x -> func x
