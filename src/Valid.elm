@@ -1,9 +1,9 @@
-module TypeChecker exposing (..)
+module Valid exposing (..)
 
 import Ast.Func exposing (Func)
 import Ast.Instruction exposing (ControlScope, FoldedInstr(..), IfScope, Instruction(..))
-import Ast.Module exposing (Ast)
 import Dict exposing (Dict)
+import More.Dict as Dict
 import More.List as List
 import ValType exposing (ValType(..))
 
@@ -18,7 +18,7 @@ type alias ScopeEnv =
 
 type alias FuncEnv =
     { result : Maybe ValType
-    , functions : Dict String (List ValType, Maybe ValType)
+    , functions : Dict String Func
     , locals : Dict String ValType
     , stack : List ValType
     , scopes : List ScopeEnv 
@@ -200,8 +200,8 @@ checkInstr instr env =
             
         Call label ->
             case Dict.get label env.functions of
-                Just (params, result) ->
-                    op params result env
+                Just fn ->
+                    op (List.map Tuple.second fn.params) fn.result env
                 
                 Nothing ->
                     "Tried to call nonexistent function $" ++ label ++ "."
@@ -315,22 +315,31 @@ checkInstructions instructions env =
     List.foldLeftUntilErr checkInstr instructions env
     
 
--- checkFunction : Func -> Dict String (List ValType, Maybe ValType) -> Maybe String
--- checkFunction fn funcSignatures =
---     let 
---         env : FuncEnv
---         env = 
---             { result = fn.result
---             , functions = funcSignatures
---             , locals = fn.params    
---             , stack = []
---             , scopes = []
---             , unreachable = False
---             }
---     in
---     
--- 
+checkFunc : Dict String Func -> Func -> Result String ()
+checkFunc funcSignatures fn =
+    Dict.allUnique fn.params
+    |> Result.fromMaybe "Duplicate label names"
+    |> Result.andThen (\d -> 
+        fn.locals 
+        |> \l -> Dict.insertManyUnique l d
+        |> Result.fromMaybe "local name is duplicate of another local or parameter."
+        |> Result.andThen (\locals -> 
+            { result = fn.result
+            , functions = funcSignatures
+            , locals = locals
+            , stack = []
+            , scopes = []
+            , unreachable = False
+            } 
+            |> checkInstructions fn.body
+            |> Result.map (\_ -> ())))
+
+
 -- checkModule : Ast -> Maybe String
 -- checkModule mod =
---     let functions = List.map (\fn -> (fn.label, (fn.params, fn.result))) mod.functions in
+--     Dict.toList mod.functions
+--     |> List.map (\(_, func) -> checkFunction mod.functions func)
+--     |> (\errs -> case errs of
+--         
+--     )
     

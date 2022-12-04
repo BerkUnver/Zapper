@@ -55,4 +55,10 @@
             end
         end        
     )
+    
+    (func $returnDrop (result i32) ;; return automatically drops unused values
+        i32.const 0
+        i32.const 0
+        return
+    )
 )

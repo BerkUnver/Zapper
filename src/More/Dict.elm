@@ -1,4 +1,4 @@
-﻿module More.Dict exposing (..)
+module More.Dict exposing (..)
 
 import Dict exposing (Dict)
 

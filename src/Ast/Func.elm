@@ -7,21 +7,15 @@ import More.List as List
  
 -- todo : Add anonymous params, locals, and functions that can be accessed only by index.
 -- todo : Add type aliases in function name
-
-type alias Local = 
-    { label : String
-    , dataType : ValType
-    }
     
-
-paramToString : Local -> String
-paramToString param = 
-    "(param $" ++ param.label ++ " " ++ ValType.toString param.dataType ++ ")"
+paramToString : (String, ValType) -> String
+paramToString (label, t) = 
+    "(param $" ++ label ++ " " ++ ValType.toString t ++ ")"
     
     
-localToString : Local -> String
-localToString local =
-    "(local $" ++ local.label ++ " " ++ ValType.toString local.dataType ++ ")"
+localToString : (String, ValType) -> String
+localToString (label, t) =
+    "(local $" ++ label ++ " " ++ ValType.toString t ++ ")"
     
 
 resultToString : ValType -> String
@@ -29,15 +23,15 @@ resultToString valType =
     "(result " ++ ValType.toString valType ++ ")"
             
             
-parseParam : Lexer.Token -> Maybe Local
+parseParam : Lexer.Token -> Maybe (String, ValType)
 parseParam param =
     case param of
-        Scope [Lexer.Param, Label name, ValType t] -> 
-            Just { label = name, dataType = t }
+        Scope [Lexer.Param, Label label, ValType t] -> 
+            Just (label, t)
         _ -> Nothing
         
 
-parseParams : List Lexer.Token -> (List Local, List Lexer.Token)
+parseParams : List Lexer.Token -> (List (String, ValType), List Lexer.Token)
 parseParams funcSExpr = List.mapUntilNothing parseParam funcSExpr 
         
         
@@ -49,22 +43,22 @@ parseResult result =
         _ -> Nothing
         
 
-parseLocal : Lexer.Token -> Maybe Local
+parseLocal : Lexer.Token -> Maybe (String, ValType)
 parseLocal local = 
     case local of 
-        Scope [Lexer.Local, Label var, ValType t] ->
-            Just {label = var, dataType = t}
+        Scope [Lexer.Local, Label label, ValType t] ->
+            Just (label, t)
         _ -> Nothing
 
 
-parseLocals : List Lexer.Token -> (List Local, List Lexer.Token)
+parseLocals : List Lexer.Token -> (List (String, ValType), List Lexer.Token)
 parseLocals func = List.mapUntilNothing parseLocal func
 
 
-type alias Func = -- TODO : make it illegal to have duplicate names for things!
-    { params : List Local
+type alias Func =
+    { params : List (String, ValType)
     , result : Maybe ValType
-    , locals : List Local
+    , locals : List (String, ValType)
     , body : List Instruction
     }
 

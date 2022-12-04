@@ -15,48 +15,34 @@ validParam valType name =
 labelTypeFuzz = pair string valType
 
 
-
-paramFuzz = 
-    labelTypeFuzz
-    |> Fuzz.map (\(label, t) -> {label = label, dataType = t})
-
-
-resultFuzz = ValTypeFuzz.valType
-
-
-localFuzz = 
-    labelTypeFuzz
-    |> Fuzz.map (\(label, t) -> {label = label, dataType = t})
-    
-
-funcDeclarationFuzz : Fuzzer Func
-funcDeclarationFuzz = 
+funcFuzz : Fuzzer Func
+funcFuzz = 
     ((\params result locals -> {params = params, result = result, locals = locals, body = []})
-    |> Fuzz.map3) (list paramFuzz) (maybe resultFuzz) (list localFuzz)
+    |> Fuzz.map3) (list labelTypeFuzz) (maybe valType) (list labelTypeFuzz)
 
 
 suite : Test
 suite = 
     describe "Func" <| 
         [ describe "parseParam" <|
-            [ fuzz paramFuzz "general-purpose test-case" <|
-                \param ->
-                Scope [Param, Label param.label, ValType param.dataType]
+            [ fuzz labelTypeFuzz "general-purpose test-case" <|
+                \(label, t) ->
+                Scope [Param, Label label, ValType t]
                 |> Func.parseParam
-                |> Expect.equal (Just param)
+                |> Expect.equal (Just (label, t))
             ]
         
         , describe "parseParams" <|
-            [ fuzz (list paramFuzz) "general test case" <|
+            [ fuzz (list labelTypeFuzz) "general test case" <|
                 \params ->
                 params 
-                |> List.foldr (\param into -> Scope [Param, Label param.label, ValType param.dataType] :: into) []
+                |> List.foldr (\(label, t) into -> Scope [Param, Label label, ValType t] :: into) []
                 |> Func.parseParams
                 |> Expect.equal (params, [])
             ]
             
         , describe "parseResult" <|
-            [ fuzz resultFuzz "general-purpose test case" <|
+            [ fuzz valType "general-purpose test case" <|
                 \t ->
                 Scope [Result, ValType t]
                 |> Func.parseResult
@@ -64,28 +50,28 @@ suite =
             ]
             
         , describe "parseLocal" <|
-            [ fuzz localFuzz "general test case" <|
-                \local ->
-                Scope [Local, Label local.label, ValType local.dataType]
+            [ fuzz labelTypeFuzz "general test case" <|
+                \(label, t) ->
+                Scope [Local, Label label, ValType t]
                 |> Func.parseLocal
-                |> Expect.equal (Just local)
+                |> Expect.equal (Just (label, t))
             ]
         
         , describe "parseLocals" <| 
-            [ fuzz (list localFuzz) "general" <|
+            [ fuzz (list labelTypeFuzz) "general" <|
                 \locals ->
                 locals 
-                |> List.foldr (\local into -> Scope [Local, Label local.label, ValType local.dataType] :: into) []
+                |> List.foldr (\(label, t) into -> Scope [Local, Label label, ValType t] :: into) []
                 |> Func.parseLocals 
                 |> Expect.equal (locals, [])
             ]
         
         , describe "parse" <|
-            [ fuzz funcDeclarationFuzz "empty body, fuzzed declaration." <|
+            [ fuzz funcFuzz "empty body, fuzzed declaration." <|
                 \func ->
-                List.foldr (\local list -> Scope [Local, Label local.label, ValType local.dataType] :: list) [] func.locals -- append the locals
+                List.foldr (\(label, t) list -> Scope [Local, Label label, ValType t] :: list) [] func.locals -- append the locals
                 |> (\tail -> func.result |> Maybe.map (\t -> Scope [Result, ValType t] :: tail) |> Maybe.withDefault tail) -- append the result if it exists
-                |> (\tail -> List.foldr (\param list -> Scope [Param, Label param.label, ValType param.dataType] :: list) tail func.params) -- append the params
+                |> (\tail -> List.foldr (\(label, t) list -> Scope [Param, Label label, ValType t] :: list) tail func.params) -- append the params
                 |> Func.parse
                 |> Expect.equal (Ok func)
             ]

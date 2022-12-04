@@ -170,3 +170,28 @@ appendReverse front back =
             head :: back
             |> appendReverse tail 
         [] -> back
+        
+
+reverseMap : (a -> b) -> List a -> List b
+reverseMap func list =
+    let 
+        appendReverseMap fn oldList newList = 
+            case oldList of 
+                head :: tail ->
+                    fn head :: newList
+                    |> appendReverseMap fn tail
+                [] -> newList
+    in 
+    appendReverseMap func list []
+
+
+tryTake : Int -> List a -> Maybe (List a)
+tryTake length list = 
+    if length <= 0 then
+        Just []
+    else
+        case list of 
+            [] -> Nothing
+            head :: tail -> 
+                tryTake (length - 1) tail
+                |> Maybe.map (\t -> head :: t)
