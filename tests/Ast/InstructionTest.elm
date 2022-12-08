@@ -44,20 +44,30 @@ suite =
                     [Instr "block", Label "", Instr "end"]
                     |> Instruction.parseSingle
                     |> Expect.equal (Ok (Block {label = Just "", result = Nothing, body = []}, []))
-                        
             
-            , test "empty unfolded if with label" <|
-                \_ ->
+            , describe "if"
+                [ test "if end (no else)" <|
+                    \_ ->
+                    [Instr "if", Instr "end"]
+                    |> Instruction.parseSingle
+                    |> Expect.equal (Ok (If {label = Nothing, result = Nothing, thenBlock = [], elseBlock = []}, []))
+                , test "empty unfolded if with label" <|
+                    \_ ->
                    [Instr "if", Label "label", Instr "else", Instr "end"]
                    |> Instruction.parseSingle
                    |> Expect.equal (Ok (If {label = Just "label", result = Nothing, thenBlock = [], elseBlock = []}, []))
-            , test "empty unfolded if without label" <|
-                \_ ->
+                , test "empty unfolded if without label" <|
+                    \_ ->
                     [Instr "if", Instr "else", Instr "end"]
                     |> Instruction.parseSingle
                     |> Expect.equal (Ok (If {label = Nothing, result = Nothing, thenBlock = [], elseBlock = []}, []))
-                   
-           
+                       
+                , test "unfolded if with body" <|
+                    \_ ->
+                     [Instr "if", Instr "i32.const", Int 1, Instr "else", Instr "i32.const", Int 0, Instr "end"]
+                     |> Instruction.parseSingle
+                     |> Expect.equal (Ok (If {label = Nothing, result = Nothing, thenBlock = [I32Const 1], elseBlock = [I32Const 0]}, []))
+                ]
             ]
          
         , describe "foldedToString" <|

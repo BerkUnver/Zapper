@@ -185,13 +185,13 @@ reverseMap func list =
     appendReverseMap func list []
 
 
-tryTake : Int -> List a -> Maybe (List a)
+tryTake : Int -> List a -> Maybe (List a, List a)
 tryTake length list = 
     if length <= 0 then
-        Just []
+        Just ([], list)
     else
         case list of 
             [] -> Nothing
             head :: tail -> 
                 tryTake (length - 1) tail
-                |> Maybe.map (\t -> head :: t)
+                |> Maybe.map (\(taken, rest) -> (head :: taken, rest))

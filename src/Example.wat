@@ -30,6 +30,22 @@
         (return (i32.mul (local.get $n) (call $fact (i32.sub (local.get $n) (i32.const 1)))))
     )
     
+    (func $factUnfolded (param $n i32) (result i32)
+        local.get $n
+        i32.const 1
+        i32.lt_s
+        if (result i32)
+            i32.const 1
+        else
+            local.get $n
+            i32.const 1
+            i32.sub
+            call $factUnfolded
+            local.get $n
+            i32.mul
+        end
+    )
+    
     (func $ifTypeSignature (result i32)
         i32.const 0
         if $block (result i32)

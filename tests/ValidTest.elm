@@ -50,29 +50,29 @@ suite =
             
         , 
             let envFuzz = triple (pair string valType) (list valType) bool in
-            describe "checkInstr" 
+            describe "checkInstruction" 
             [ fuzz envFuzz "local.get" <|
                 \((label, t), stack, unreachable) ->
                 let env = {dummyEnv | locals = Dict.singleton label t, stack = stack, unreachable = unreachable} in
-                Valid.checkInstr (LocalGet label) env
+                Valid.checkInstruction (LocalGet label) env
                 |> Expect.equal (Ok {env | stack = t :: stack})
             
             , fuzz envFuzz "local.set" <|
                 \((label, t), stack, unreachable) ->
                 let env = {dummyEnv | locals = Dict.singleton label t, stack = t :: stack, unreachable = unreachable} in
-                Valid.checkInstr (LocalSet label) env
+                Valid.checkInstruction (LocalSet label) env
                 |> Expect.equal (Ok {env | stack = stack})
             
             , fuzz envFuzz "local.tee" <|
                 \((label, t), stack, unreachable) ->
                 let env = {dummyEnv | locals = Dict.singleton label t, stack = t :: stack, unreachable = unreachable} in
-                Valid.checkInstr (LocalTee label) env
+                Valid.checkInstruction (LocalTee label) env
                 |> Expect.equal (Ok env)
             
             , fuzz (maybe valType) "return" <|
                 \result ->
                 let env = {dummyEnv | result = result, stack = List.fromMaybe result} in
-                Valid.checkInstr Return env
+                Valid.checkInstruction Return env
                 |> Expect.equal (Ok {env | stack = [], unreachable = True})
           
             -- br_if is practically identical, except the unreachable flag is not set afterwards
@@ -86,13 +86,13 @@ suite =
                         , stack = if scopeEnv.isLoop then [] else List.fromMaybe scopeEnv.result
                         } 
                 in
-                Valid.checkInstr (Br label) env
+                Valid.checkInstruction (Br label) env
                 |> Expect.equal (Ok {env | stack = [], unreachable = True})
             
             , fuzz2 string FuncEnv.funcFuzz "call" <|
                 \label fn ->
                 let env = {dummyEnv | functions = Dict.singleton label fn, stack = List.reverseMap Tuple.second fn.params} in
-                Valid.checkInstr (Call label) env
+                Valid.checkInstruction (Call label) env
                 |> Expect.equal (Ok {env | stack = List.fromMaybe fn.result})
             ]
         

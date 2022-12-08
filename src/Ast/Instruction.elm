@@ -82,6 +82,7 @@ type Instruction
     | F32Add | F64Add
     | F32Sub | F64Sub
     | F32Mul | F64Mul
+    | F32Div | F64Div
     | F32Min | F64Min
     | F32Max | F64Max
     -- todo : copysign
@@ -228,6 +229,7 @@ singleNumericOps =
     , ("f32.add", F32Add), ("f64.add", F64Add)
     , ("f32.sub", F32Sub), ("f64.sub", F64Sub)
     , ("f32.mul", F32Mul), ("f64.mul", F64Mul)
+    , ("f32.div", F32Div), ("f64.div", F64Div)
     , ("f32.min", F32Min), ("f64.min", F64Min)
     , ("f32.max", F32Max), ("f64.max", F64Max)
     
@@ -278,32 +280,22 @@ parseLabelAndResult tokens =
     (label, result, body)
 
 
-parseToSymbol : String -> List Token -> Result String (List Instruction, List Token)
-parseToSymbol name tokens = 
-    let 
-        parseNormally () = 
-           parseSingle tokens
-           |> Result.andThen (\(instr, tail) -> 
-               parseToEndToken tail |> Result.map (\(instructions, unparsed) -> 
-                   (instr :: instructions, unparsed))) 
-    in
+parseToEndToken :List Token -> Result String (List Instruction, List Token)
+parseToEndToken tokens = 
     case tokens of 
         [] -> 
-            "Expected symbol \"" ++ name ++ "\" not found."
+            "end token not found."
             |> Err
              
-        Instr instr :: tail ->
-            if instr == name then
-                Ok ([], tail)
-            else 
-                parseNormally ()
+        Instr "end" :: tail ->
+            Ok ([], tail)
         _ ->
-            parseNormally ()
- 
- 
-parseToEndToken : List Token -> Result String (List Instruction, List Token)
-parseToEndToken tokens = 
-    parseToSymbol "end" tokens
+           parseSingle tokens
+           |> Result.andThen (\(instr, tail) -> 
+               parseToEndToken tail 
+               |> Result.map (\(instructions, unparsed) -> 
+                   (instr :: instructions, unparsed))) 
+
 
 
 parseScope : List Token -> Result String (ControlScope, List Token)
@@ -344,16 +336,22 @@ parseFolded tokens =
                     parseLabelAndResult ifBody
                     
                 parseIf : Maybe (List Token) -> List Token -> List Token -> Result String FoldedIfScope
-                parseIf foldedInstr thenBody elseBody = 
-                    foldedInstr 
-                    |> Maybe.map (parseFolded >> Result.map Just)
-                    |> Maybe.withDefault (Ok Nothing)
+                parseIf foldedInstr thenBody elseBody =
+                    let 
+                        foldedResult =
+                            case foldedInstr of
+                                Nothing -> Ok Nothing
+                                Just instructions ->
+                                    parseFolded instructions
+                                    |> Result.map Just -- wrap the correctly parsed instruction with just (folded instructions in if are optional)
+                    in
+                    foldedResult
                     |> Result.andThen (\foldedB ->
-                    parse thenBody
-                    |> Result.andThen (\thenB ->
-                    parse elseBody
-                    |> Result.map (\elseB -> 
-                    {label = label, folded = foldedB, result = result, thenBlock = thenB, elseBlock = elseB})))
+                        parse thenBody
+                        |> Result.andThen (\thenB ->
+                            parse elseBody
+                            |> Result.map (\elseB -> 
+                                {label = label, folded = foldedB, result = result, thenBlock = thenB, elseBlock = elseB})))
                     
                 parsed =
                     case body of 
@@ -395,12 +393,29 @@ parseSingle tokens =
             |> Result.map (Tuple.mapFirst Loop)
         
         Instr "if" :: tail ->
-            let (label, result, body) = parseLabelAndResult tail in
-            parseToSymbol "else" body
-            |> Result.andThen (\(thenB, elseTokens) ->
-            parseToEndToken elseTokens
-            |> Result.map (\(elseB, rest) -> 
-            (If {label = label, result = result, thenBlock = thenB, elseBlock = elseB}, rest)))
+            let 
+                parseIf ifBody =
+                    case ifBody of
+                        [] -> 
+                            Err "If statement did not have closing end."
+                        Instr "else" :: elseTail ->
+                            parseToEndToken elseTail
+                            |> Result.map (\(elseBlock, rest) -> ([], elseBlock, rest))
+                        Instr "end" :: rest ->
+                            Ok ([], [], rest)
+                        _ ->
+                            parseSingle ifBody
+                            |> Result.andThen (\(parsedHead, restOfIf) ->
+                                parseIf restOfIf
+                                |> Result.map (\(thenBlock, elseBlock, rest) -> 
+                                    (parsedHead :: thenBlock, elseBlock, rest)))
+                            
+                           
+                (label, result, body) = parseLabelAndResult tail 
+            in
+            parseIf body
+            |> Result.map (\(thenBlock, elseBlock, rest) -> 
+                (If {label = label, result = result, thenBlock = thenBlock, elseBlock = elseBlock}, rest))
        
         Instr "br" :: Label name :: tail ->
             Ok (Br name, tail)

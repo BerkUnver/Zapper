@@ -86,8 +86,8 @@ getLocalTypeThen label env func =
 
 
 
-checkInstr : Instruction -> FuncEnv -> Result String FuncEnv
-checkInstr instr env =
+checkInstruction : Instruction -> FuncEnv -> Result String FuncEnv
+checkInstruction instr env =
     case instr of
         
         -- this is a certified Elm moment
@@ -124,12 +124,14 @@ checkInstr instr env =
         F32Add -> binOp F32 F32 F32 env
         F32Sub -> binOp F32 F32 F32 env
         F32Mul -> binOp F32 F32 F32 env
+        F32Div -> binOp F32 F32 F32 env
         F32Min -> binOp F32 F32 F32 env
         F32Max -> binOp F32 F32 F32 env
         
         F64Add -> binOp F64 F64 F64 env
         F64Sub -> binOp F64 F64 F64 env
         F64Mul -> binOp F64 F64 F64 env
+        F64Div -> binOp F64 F64 F64 env
         F64Min -> binOp F64 F64 F64 env
         F64Max -> binOp F64 F64 F64 env
         
@@ -220,8 +222,8 @@ checkFolded : FoldedInstr -> FuncEnv -> Result String FuncEnv
 checkFolded folded env =
     case folded of 
         FInstr (head, tail) ->
-            List.foldLeftUntilErr checkFolded tail env
-            |> Result.andThen (checkInstr head)
+            checkInstruction head env
+            |> Result.andThen (List.foldLeftUntilErr checkFolded tail)
         
         FIf if_ ->
             ( case if_.folded of
@@ -312,7 +314,7 @@ checkScope scope isLoop env =
         
 checkInstructions : List Instruction -> FuncEnv -> Result String FuncEnv
 checkInstructions instructions env =
-    List.foldLeftUntilErr checkInstr instructions env
+    List.foldLeftUntilErr checkInstruction instructions env
     
 
 checkFunc : Dict String Func -> Func -> Result String ()

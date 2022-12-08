@@ -1,4 +1,4 @@
-﻿module Interpreter.Val exposing (..)
+module Interpreter.Val exposing (..)
 
 import ValType exposing (ValType)
 
@@ -40,3 +40,12 @@ ofType t val = getType val == t
 
 sameType : Val -> Val -> Bool
 sameType v1 v2 = getType v1 == getType v2
+
+
+default : ValType -> Val
+default t =
+    case t of 
+        ValType.I32 -> I32 0
+        ValType.I64 -> I64 0
+        ValType.F32 -> F32 0
+        ValType.F64 -> F64 0
