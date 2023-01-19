@@ -2,11 +2,14 @@ module ValidTest exposing (..)
 
 import Ast.Func exposing (Func)
 import Ast.FuncTest as FuncEnv
-import Ast.Instruction exposing (Instruction(..))
+import Ast.Instruction exposing (FoldedInstr(..), Instruction(..))
+import Ast.Module as Module
 import Dict
+import ExampleModules
 import Expect
 import Fuzz exposing (Fuzzer, bool, list, maybe, pair, string, triple)
 import More.List as List
+import More.Maybe as Maybe
 import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
 import Valid exposing (FuncEnv, ScopeEnv)
 import ValType exposing (ValType(..))
@@ -31,6 +34,15 @@ scopeEnvFuzz =
         (maybe string) (maybe valType) bool bool
 
 
+addFunc : Func
+addFunc =                   
+    { params = [("lhs", I32), ("rhs", I32)]
+    , result = Just I32
+    , locals = []
+    , body = [LocalGet "lhs", LocalGet "rhs", I32Add]
+    }
+
+
 suite : Test
 suite =
     describe "Valid" 
@@ -51,7 +63,13 @@ suite =
         , 
             let envFuzz = triple (pair string valType) (list valType) bool in
             describe "checkInstruction" 
-            [ fuzz envFuzz "local.get" <|
+            [ test "i32.lt_s" <|
+                \_ ->
+                {dummyEnv | stack = [I32, I32]}
+                |> Valid.checkInstruction I32LtS
+                |> Expect.equal (Ok {dummyEnv | stack = [I32]})
+            
+            , fuzz envFuzz "local.get" <|
                 \((label, t), stack, unreachable) ->
                 let env = {dummyEnv | locals = Dict.singleton label t, stack = stack, unreachable = unreachable} in
                 Valid.checkInstruction (LocalGet label) env
@@ -95,7 +113,7 @@ suite =
                 Valid.checkInstruction (Call label) env
                 |> Expect.equal (Ok {env | stack = List.fromMaybe fn.result})
             ]
-        
+            
         , describe "checkInstructions" -- this should be good enough
             [ test "two adds" <|
                 \_ -> 
@@ -108,6 +126,21 @@ suite =
                 let env = {dummyEnv | stack = [F32, F32, I32]} in
                 Valid.checkInstructions [F32Eq, I32Add] env
                 |> Expect.equal (Ok {env | stack = [I32]})
+            
+            , test "return from if" <|
+                \_ ->
+                let 
+                    ifScope = 
+                        { label = Nothing
+                        , result = Nothing -- result can be nothing because returning in the if statement causes the stack to be unwound
+                        , thenBlock = [I32Const 1, Return]
+                        , elseBlock = []
+                        }
+                    instructions = [If ifScope, I32Const 0] 
+                    env = {dummyEnv | stack = [I32], result = Just I32}
+                in
+                Valid.checkInstructions instructions env
+                |> Expect.equal (Ok env)
             ]
             
         , describe "checkFunction" 
@@ -150,4 +183,32 @@ suite =
                 Valid.checkScope {label = Nothing, result = Nothing, body = []} False dummyEnv
                 |> Expect.equal (Ok dummyEnv)
             ]
+            
+        , describe "checkFolded" <|
+        
+            [ test "i32.lt_s folded" <|
+                \_ ->
+                let env = {dummyEnv | locals = Dict.singleton "x" I32} in
+                Valid.checkFolded (FInstr (I32LtS, [FInstr (LocalGet "x", []),  FInstr (I32Const 1, [])])) env
+                |> Expect.equal (Ok {env | stack = [I32]})
+            
+            , test "calling folded function" <|
+                \_ -> 
+                let
+                    env = {dummyEnv | stack = [I32, I32], functions = Dict.singleton "add" addFunc}
+                    instruction = FInstr (Call "add", [])
+                in
+                Valid.checkFolded instruction env
+                |> Expect.equal (Ok {env | stack = [I32]})
+            ]
+            
+        , test "factorial" <|
+            \_ ->
+            Module.parse ExampleModules.factorial
+            |> Result.andThen (\ast ->
+                Dict.get "fact" ast.functions 
+                |> Maybe.unwrap
+                |> Valid.checkFunc ast.functions
+            )
+            |> Expect.equal (Ok ())
         ]

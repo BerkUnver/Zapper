@@ -36,7 +36,27 @@ mapUntilNothing predicate list =
                         (left, right) = mapUntilNothing predicate tail 
                     in
                         (element :: left, right)
-                        
+
+allSucceed : (a -> Result err ()) -> List a -> Result err ()
+allSucceed predicate list = 
+    case list of 
+        [] -> Ok ()
+        head :: tail ->
+            case predicate head of
+                Ok () -> allSucceed predicate tail
+                Err e -> Err e
+
+
+mapOrErr predicate list = 
+    case list of
+        [] -> Ok []
+        head :: tail ->
+            predicate head
+            |> Result.andThen (\newHead ->
+                mapOrErr predicate tail
+                |> Result.map (\newTail -> newHead :: newTail)
+            )
+                                                
                     
 count predicate list = 
     case list of 

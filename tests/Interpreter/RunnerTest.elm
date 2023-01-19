@@ -4,6 +4,7 @@ import Ast.Func
 import Ast.Instruction exposing (FoldedInstr(..), IfScope, Instruction(..))
 import Ast.Module as Module exposing (Ast)
 import Dict
+import ExampleModules
 import Expect
 import Fuzz exposing (Fuzzer, bool, float, int, intRange, list, maybe, pair, string)
 import Interpreter.Frame exposing (Frame, RuntimeUpdate(..))
@@ -12,7 +13,6 @@ import Interpreter.Val as Val
 import More.Maybe as Maybe
 import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
 import ValType
-import ValTypeFuzz exposing (valType)
 
 
 emptyAst : Ast
@@ -176,6 +176,7 @@ suite =
             Module.parse mod
             |> Result.andThen Runner.runMain
             |> Expect.equal (Ok <| ReturnVal <| Val.I32 2)
+
         , fuzz (intRange 0 100) "unfolded factorial function" <| 
         -- if the high end of the int-range gets too high there will be a stack overflow exception.
             \int -> 
@@ -211,20 +212,7 @@ suite =
         
         , fuzz (intRange 0 100) "folded factorial function" <|
             \int ->
-            let
-                moduleString = """
-(module
-    (func $fact (param $n i32) (result i32)
-        (i32.lt_s (local.get $n) (i32.const 1))
-        if
-            (return (i32.const 1))
-        end
-        (return (i32.mul (local.get $n) (call $fact (i32.sub (local.get $n) (i32.const 1)))))
-    )
-)
-"""
-            in
-            Module.parse moduleString
+            Module.parse ExampleModules.factorial
             |> Result.andThen (\ast ->
                 ast.functions
                 |> Dict.get "fact"

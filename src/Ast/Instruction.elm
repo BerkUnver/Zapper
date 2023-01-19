@@ -59,7 +59,7 @@ type Instruction
     | Call String
     -- todo : br_table, call_indirect
     
-    | I32Const Int | I64Const Int 
+    |  I32Const Int | I64Const Int 
     | F32Const Float | F64Const Float
     
     -- todo : clz, ctz, popcnt

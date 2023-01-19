@@ -2,6 +2,7 @@ module Valid exposing (..)
 
 import Ast.Func exposing (Func)
 import Ast.Instruction exposing (ControlScope, FoldedInstr(..), IfScope, Instruction(..))
+import Ast.Module exposing (Ast)
 import Dict exposing (Dict)
 import More.Dict as Dict
 import More.List as List
@@ -222,8 +223,8 @@ checkFolded : FoldedInstr -> FuncEnv -> Result String FuncEnv
 checkFolded folded env =
     case folded of 
         FInstr (head, tail) ->
-            checkInstruction head env
-            |> Result.andThen (List.foldLeftUntilErr checkFolded tail)
+            List.foldLeftUntilErr checkFolded tail env
+            |> Result.andThen (checkInstruction head) 
         
         FIf if_ ->
             ( case if_.folded of
@@ -337,11 +338,9 @@ checkFunc funcSignatures fn =
             |> Result.map (\_ -> ())))
 
 
--- checkModule : Ast -> Maybe String
--- checkModule mod =
---     Dict.toList mod.functions
---     |> List.map (\(_, func) -> checkFunction mod.functions func)
---     |> (\errs -> case errs of
---         
---     )
+checkModule : Ast -> Result String ()
+checkModule mod =
+    mod.functions
+    |> Dict.toList
+    |> List.allSucceed (\(_, func) -> checkFunc mod.functions func) 
     
