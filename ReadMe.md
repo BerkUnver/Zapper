@@ -2,7 +2,7 @@
 Zapper is a purely-functional interpreter for a subset of Web Assembly implemented in Elm.
 This project was created as a one-semester independent study class for university, and is not intended for general use.
 It currently supports a subset of the s-expression-based textual format of Web Assembly.
-The most complex thing I have tested this on is a simple recursive factorial program.
+
 
 ### What works
 The lexer, parser, type checker, and interpreter only support certain constructs of Web Assembly. This includes:
@@ -37,8 +37,7 @@ I believe I made good use of unit testing throughout the project. Elm provides a
 I could have easily implemented much better error messages with only minor modifications to the token and abstract syntax tree types.
 This not only would have improved the user experience but also would have made debugging much easier.
 I implemented folded instructions as a separate datatype to allow them to show up if I printed the abstract syntax tree, but this added redundancies in the the type checker and interpreter.
-Also compounding friction in the interpreter and type checker were bad naming practices, resulting in the two being somewhat convoluted.
-The type checker is not as thoroughly-tested as I would have liked. If I had time, I also would have liked to make a frontend where one could copy and paste code, run it, and see its output.
+Also compounding friction in the interpreter and type checker were bad naming practices, resulting in the two being somewhat convoluted. Due to my time limitations, I was not able to test the type checker to my satisfaction. I would have also liked to make a frontend where one could copy and paste code, run it, and see its output.
 
 ## Looking Forward
 This was an interesting experiment.
